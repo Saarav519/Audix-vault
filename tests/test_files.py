@@ -25,7 +25,7 @@ BUCKET = "audix-test-bucket"
 def s3():
     with mock_aws(), override_settings(S3_BUCKET_NAME=BUCKET, S3_REGION="us-east-1", S3_ENDPOINT_URL="",
                                        S3_ACCESS_KEY_ID="test", S3_SECRET_ACCESS_KEY="test",
-                                       S3_ADDRESSING_STYLE="virtual"):
+                                       S3_ADDRESSING_STYLE="virtual", S3_UPLOAD_MODE="direct"):
         storage._s3.cache_clear()
         boto3.client("s3", region_name="us-east-1").create_bucket(Bucket=BUCKET)
         yield boto3.client("s3", region_name="us-east-1")
@@ -221,3 +221,75 @@ def test_detail_panel_and_view_logged(setup, user_a):
     r = http.get(reverse("audits:detail", args=[audit_a.pk]) + "?panel=1")
     assert r.status_code == 200 and "<html" not in r.content.decode()
     assert ActivityLog.objects.filter(action="Viewed audit", audit=audit_a).exists()
+
+
+# ---------------------------------------------------------------- S3 proxy upload mode (default)
+
+
+@pytest.fixture
+def s3_proxy():
+    with mock_aws(), override_settings(S3_BUCKET_NAME=BUCKET, S3_REGION="us-east-1", S3_ENDPOINT_URL="",
+                                       S3_ACCESS_KEY_ID="test", S3_SECRET_ACCESS_KEY="test",
+                                       S3_ADDRESSING_STYLE="virtual", S3_UPLOAD_MODE="proxy"):
+        storage._s3.cache_clear()
+        boto3.client("s3", region_name="us-east-1").create_bucket(Bucket=BUCKET)
+        yield boto3.client("s3", region_name="us-east-1")
+    storage._s3.cache_clear()
+
+
+def test_upload_mode_default_is_proxy():
+    from django.conf import settings
+
+    assert settings.S3_UPLOAD_MODE == "proxy"
+
+
+def test_s3_proxy_presign_points_at_the_app(s3_proxy, setup, admin):
+    audit_a, _, _ = setup
+    r = staff_http(admin).post(reverse("audits:presign", args=[audit_a.pk]),
+                               {"kind": "signoff", "name": "s.pdf", "size": 10})
+    p = r.json()
+    assert p["url"].startswith("/files/local/upload/") and p["fields"] == {}
+    assert p["content_type"] == "application/pdf"
+
+
+def test_s3_proxy_upload_flow(s3_proxy, setup, admin, user_a):
+    audit_a, _, _ = setup
+    staff = staff_http(admin)
+    pdf = upload(staff, audit_a, "signoff", "Signoff.pdf", b"%PDF-1.4 proxied", None)
+    photo = upload(staff, audit_a, "photo", "IMG.jpg", jpeg_with_gps(), None)
+    obj = s3_proxy.get_object(Bucket=BUCKET, Key=pdf.storage_key)
+    assert obj["Body"].read() == b"%PDF-1.4 proxied" and obj["ContentType"] == "application/pdf"
+    stored = s3_proxy.get_object(Bucket=BUCKET, Key=photo.storage_key)["Body"].read()
+    assert 0x8825 not in Image.open(io.BytesIO(stored)).getexif()
+    assert s3_proxy.head_object(Bucket=BUCKET, Key=photo.thumbnail_key)["ContentLength"] > 0
+    # downloads still go straight to the bucket with a 10-minute presigned link
+    http = HttpClient()
+    http.force_login(user_a)
+    r = http.get(reverse("audits:download", args=[audit_a.pk, pdf.pk]))
+    assert r.status_code == 302 and parse_qs(urlparse(r["Location"]).query)["X-Amz-Expires"] == ["600"]
+
+
+def test_s3_proxy_upload_rejects_bad_requests(s3_proxy, setup, admin):
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    audit_a, _, _ = setup
+    staff = staff_http(admin)
+    p = staff.post(reverse("audits:presign", args=[audit_a.pk]), {"kind": "signoff", "name": "s.pdf", "size": 10}).json()
+    wrong_type = staff.post(p["url"], {"file": SimpleUploadedFile("s.pdf", b"x" * 10), "Content-Type": "image/png"})
+    assert wrong_type.status_code == 400
+    too_big = staff.post(p["url"], {"file": SimpleUploadedFile("s.pdf", b"x" * (26 * 1024 * 1024)),
+                                    "Content-Type": "application/pdf"})
+    assert too_big.status_code == 400
+    assert staff.post("/files/local/upload/not-a-token/", {"file": SimpleUploadedFile("s.pdf", b"x")}).status_code == 403
+    assert "Contents" not in s3_proxy.list_objects_v2(Bucket=BUCKET)
+
+
+def test_proxy_endpoint_closed_in_direct_mode(s3, setup, admin):
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    from core.storage import proxy_upload
+
+    url = proxy_upload("clients/x/y.pdf", "application/pdf", 100)["url"]
+
+    r = staff_http(admin).post(url, {"file": SimpleUploadedFile("y.pdf", b"x"), "Content-Type": "application/pdf"})
+    assert r.status_code == 404

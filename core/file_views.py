@@ -15,8 +15,10 @@ from core import storage
 @require_POST
 @login_required
 def local_upload(request, token):
+    """Proxy upload endpoint: used by local storage and by S3 in "proxy" upload mode."""
     backend = storage.get_backend()
-    if not isinstance(backend, storage.LocalBackend):
+    if not (isinstance(backend, storage.LocalBackend)
+            or (isinstance(backend, storage.S3Backend) and backend.upload_mode == "proxy")):
         raise Http404
     try:
         data = signing.loads(token, salt=storage.UPLOAD_SALT, max_age=storage.signed_minutes() * 60)
@@ -30,7 +32,8 @@ def local_upload(request, token):
     ct = request.POST.get("Content-Type") or f.content_type
     if ct != data["ct"]:
         return HttpResponse("Content type mismatch", status=400)
-    backend.put(data["k"], f.read(), data["ct"])
+    f.seek(0)
+    backend.put(data["k"], f, data["ct"])
     return JsonResponse({"ok": True}, status=201)
 
 

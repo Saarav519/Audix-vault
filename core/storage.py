@@ -57,14 +57,24 @@ def guess_type(name: str) -> str:
     return mimetypes.guess_type(name)[0] or "application/octet-stream"
 
 
+def proxy_upload(key, content_type, max_bytes):
+    """Upload through the app: the browser posts the file to our own signed endpoint."""
+    token = signing.dumps({"k": key, "ct": content_type, "max": int(max_bytes)}, salt=UPLOAD_SALT)
+    return {"method": "POST", "url": reverse("files:local_upload", args=[token]), "fields": {},
+            "file_field": "file"}
+
+
 class S3Backend:
     name = "s3"
 
-    def __init__(self, endpoint, bucket, key_id, secret, region, addressing_style="path"):
+    def __init__(self, endpoint, bucket, key_id, secret, region, addressing_style="path", upload_mode="proxy"):
         import boto3
         from botocore.config import Config
 
         self.bucket = bucket
+        # "proxy": the browser uploads to the app, which streams the file to the bucket (works with
+        # buckets that have no CORS rules, such as Railway Buckets). "direct": presigned POST to the bucket.
+        self.upload_mode = upload_mode
         self.client = boto3.client(
             "s3",
             endpoint_url=endpoint or None,
@@ -76,6 +86,8 @@ class S3Backend:
         )
 
     def presign_upload(self, key, content_type, max_bytes, minutes):
+        if self.upload_mode != "direct":
+            return proxy_upload(key, content_type, max_bytes)
         post = self.client.generate_presigned_post(
             Bucket=self.bucket, Key=key,
             Fields={"Content-Type": content_type},
@@ -102,8 +114,12 @@ class S3Backend:
             ExpiresIn=int(minutes * 60),
         )
 
-    def put(self, key, data: bytes, content_type):
-        self.client.put_object(Bucket=self.bucket, Key=key, Body=data, ContentType=content_type)
+    def put(self, key, data, content_type):
+        """data is bytes or a file-like object (streamed in parts)."""
+        if hasattr(data, "read"):
+            self.client.upload_fileobj(data, self.bucket, key, ExtraArgs={"ContentType": content_type})
+        else:
+            self.client.put_object(Bucket=self.bucket, Key=key, Body=data, ContentType=content_type)
 
     def get(self, key) -> bytes:
         return self.client.get_object(Bucket=self.bucket, Key=key)["Body"].read()
@@ -132,9 +148,7 @@ class LocalBackend:
         return p
 
     def presign_upload(self, key, content_type, max_bytes, minutes):
-        token = signing.dumps({"k": key, "ct": content_type, "max": int(max_bytes)}, salt=UPLOAD_SALT)
-        return {"method": "POST", "url": reverse("files:local_upload", args=[token]), "fields": {},
-                "file_field": "file"}
+        return proxy_upload(key, content_type, max_bytes)
 
     def head(self, key):
         p = self._path(key)
@@ -149,10 +163,15 @@ class LocalBackend:
                               salt=DOWNLOAD_SALT)
         return reverse("files:local_serve", args=[token])
 
-    def put(self, key, data: bytes, content_type):
+    def put(self, key, data, content_type):
         p = self._path(key)
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_bytes(data)
+        if hasattr(data, "read"):
+            with open(p, "wb") as fh:
+                for chunk in iter(lambda: data.read(1024 * 1024), b""):
+                    fh.write(chunk)
+        else:
+            p.write_bytes(data)
         p.with_name(p.name + ".type").write_text(content_type or "")
 
     def get(self, key) -> bytes:
@@ -173,15 +192,16 @@ class LocalBackend:
 
 
 @lru_cache(maxsize=4)
-def _s3(endpoint, bucket, key_id, secret, region, style):
-    return S3Backend(endpoint, bucket, key_id, secret, region, style)
+def _s3(endpoint, bucket, key_id, secret, region, style, upload_mode):
+    return S3Backend(endpoint, bucket, key_id, secret, region, style, upload_mode)
 
 
 def get_backend():
     """The active backend, or None when file storage is not configured."""
     if settings.S3_BUCKET_NAME:
         return _s3(settings.S3_ENDPOINT_URL, settings.S3_BUCKET_NAME, settings.S3_ACCESS_KEY_ID,
-                   settings.S3_SECRET_ACCESS_KEY, settings.S3_REGION, settings.S3_ADDRESSING_STYLE)
+                   settings.S3_SECRET_ACCESS_KEY, settings.S3_REGION, settings.S3_ADDRESSING_STYLE,
+                   settings.S3_UPLOAD_MODE)
     if settings.ALLOW_LOCAL_STORAGE:
         return LocalBackend(settings.PRIVATE_MEDIA_ROOT)
     return None

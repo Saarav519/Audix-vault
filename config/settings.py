@@ -191,6 +191,12 @@ S3_SECRET_ACCESS_KEY = env("S3_SECRET_ACCESS_KEY", default="")
 S3_REGION = env("S3_REGION", default="auto" if S3_ENDPOINT_URL else "ap-south-1")
 S3_ADDRESSING_STYLE = env("S3_ADDRESSING_STYLE", default="virtual" if not S3_ENDPOINT_URL else "path")
 SIGNED_URL_MINUTES = env.int("SIGNED_URL_MINUTES", default=10)
+# "proxy" (default): browsers upload to the app, which streams files to the bucket. Works with
+# Railway Buckets and any bucket without CORS rules. "direct": presigned POST straight to the bucket
+# (needs a CORS rule on the bucket allowing POST from the portal's domain).
+S3_UPLOAD_MODE = env("S3_UPLOAD_MODE", default="proxy").strip().lower()
+if S3_UPLOAD_MODE not in ("proxy", "direct"):
+    raise ImproperlyConfigured("S3_UPLOAD_MODE must be 'proxy' or 'direct'.")
 ALLOW_LOCAL_STORAGE = env.bool("ALLOW_LOCAL_STORAGE", default=False)
 PRIVATE_MEDIA_ROOT = Path(env("PRIVATE_MEDIA_ROOT", default=str(BASE_DIR / "private_media")))
 MAX_ZIP_BYTES = env.int("MAX_ZIP_BYTES", default=500 * 1024 * 1024)
