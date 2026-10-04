@@ -304,7 +304,8 @@ def build_preview(client, header: dict, state: EntryState, audit=None):
     checklist = [
         ("Category-wise summary entered", bool(nums)),
         ("Observation with a recommendation", any(o["text"] and o["recommendation"] for o in state.observations)),
-        ("Follow-up on last audit marked", all(str(o.pk) in state.followups for o in prev_obs)),
+        *([("Follow-up on last audit marked", all(str(o.pk) in state.followups for o in prev_obs))]
+          if previous is not None else []),
         ("Signoff copy attached", files.get(FileKind.SIGNOFF, False)),
         ("Photographs attached", files.get(FileKind.PHOTO, False)),
     ]

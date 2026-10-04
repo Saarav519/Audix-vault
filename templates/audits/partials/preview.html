@@ -14,11 +14,13 @@
 {% if preview.warnings %}<ul class="messages" style="margin-top:12px">{% for w in preview.warnings %}<li class="warning">{{ w }}</li>{% endfor %}</ul>{% endif %}
 <div class="grid grid-2" style="margin-top:12px">
 <div><h3>Completeness</h3><ul class="checklist">{% for label, ok in preview.checklist %}<li class="{% if ok %}ok{% endif %}">{{ label }}<span class="sr-only">: {% if ok %}done{% else %}not done{% endif %}</span></li>{% endfor %}</ul></div>
-<div><h3>Previous audit</h3>{% if preview.previous %}<p>{{ preview.previous.reference }}, {{ preview.previous.audit_date|fdate }} ({{ preview.previous.get_audit_type_display }}): {{ preview.previous.var_pct_stock|pct }} of stock value, {% status_pill preview.previous.status_label %}</p>{% else %}<p class="muted">No earlier published audit in this series for this store.</p>{% endif %}</div>
+{% if preview.previous %}<div><h3>Previous audit</h3><p>{{ preview.previous.reference }}, {{ preview.previous.audit_date|fdate }} ({{ preview.previous.get_audit_type_display }}): {{ preview.previous.var_pct_stock|pct }} of stock value, {% status_pill preview.previous.status_label %}</p></div>{% endif %}
 </div>
 {% if preview.comparison %}
 <h3 style="margin-top:12px">Compared with last audit</h3>
 {% include "partials/comparison.html" with cmp=preview.comparison a_label="Last audit" b_label="This audit" %}
+{% elif not preview.previous %}
+<p class="notice" style="margin-top:12px" data-first-audit>First audit for this store, so there is no earlier audit to compare.</p>
 {% endif %}
 {# out-of-band updates for the grid and hints #}
 {% for r in rows %}

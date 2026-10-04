@@ -5,8 +5,10 @@
     <p>{{ audit.audit_date|date:"D" }}, {{ audit.audit_date|fdate }}, {{ audit.get_audit_type_display }}, {{ audit.get_shift_display }} shift</p>
     <p class="hint num">{{ audit.reference }} · Store {{ audit.store.code }}
       {% if not client_view %}{% if audit.is_draft %} {% status_pill "Draft" "neutral" %}{% endif %}{% if audit.edited_at %} <span class="tag">Edited {{ audit.edited_at|fdate }}</span>{% endif %}{% endif %}</p>
-    {% if audit.is_full and audit.is_published %}
-    <p class="hint">{% if audit.aging_days is None %}First full audit on record for this store.{% else %}{{ audit.aging_days }} days since the previous full audit, {% if audit.delay_days %}<span class="tone-bad">delayed by {{ audit.delay_days }} day{{ audit.delay_days|pluralize }}</span>{% else %}on time{% endif %}{% endif %}</p>
+    {% if not previous %}
+    <p class="hint">First audit for this store.</p>
+    {% elif audit.is_full and audit.is_published and audit.aging_days is not None %}
+    <p class="hint">{{ audit.aging_days }} days since the previous full audit, {% if audit.delay_days %}<span class="tone-bad">delayed by {{ audit.delay_days }} day{{ audit.delay_days|pluralize }}</span>{% else %}on time{% endif %}</p>
     {% endif %}
   </div>
   <div class="row no-print">
@@ -54,16 +56,16 @@
 <section class="card">
   <div class="card-head"><h2>Category-wise summary</h2><small>Values in rupees</small></div>
   <div class="table-wrap"><table class="table" style="min-width:920px">
-  <thead><tr><th>Category</th><th class="num">Stock</th><th class="num">Total physical</th><th class="num">Difference</th><th class="num">Var %</th><th class="num">Last audit stock</th><th class="num">Last audit difference</th><th>Change in value</th></tr></thead>
+  <thead><tr><th>Category</th><th class="num">Stock</th><th class="num">Total physical</th><th class="num">Difference</th><th class="num">Var %</th>{% if previous %}<th class="num">Last audit stock</th><th class="num">Last audit difference</th><th>Change in value</th>{% endif %}</tr></thead>
   <tbody>{% for r in cat_rows %}<tr><td style="font-weight:500">{{ r.n.category }}</td><td class="num">{{ r.n.stock_value|inr }}</td><td class="num">{{ r.n.total_physical_value|inr }}</td>
   <td class="num {{ r.n.diff_value|money_class }}">{{ r.n.diff_value|inr }}</td><td class="num">{{ r.n.var_pct|pct:1 }}</td>
-  {% if r.prev %}<td class="num">{{ r.prev.stock_value|inr }}</td><td class="num">{{ r.prev.diff_value|inr }}<span class="sub">{{ r.prev.var_pct|pct:1 }}</span></td>
+  {% if previous %}{% if r.prev %}<td class="num">{{ r.prev.stock_value|inr }}</td><td class="num">{{ r.prev.diff_value|inr }}<span class="sub">{{ r.prev.var_pct|pct:1 }}</span></td>
   <td class="d tone-{{ r.change.tone }}">{% if r.change %}{{ r.change.text }}{% endif %}</td>
-  {% else %}<td class="muted" colspan="3">First audit</td>{% endif %}</tr>{% endfor %}</tbody>
+  {% else %}<td class="muted" colspan="3">Not in the earlier audit</td>{% endif %}{% endif %}</tr>{% endfor %}</tbody>
   </table></div>
 </section>
 
-<div class="grid grid-2">
+<div class="grid {% if previous %}grid-2{% endif %}">
 <section class="card">
   <div class="card-head"><h2>Observations and recommendations</h2><small>{{ observations|length }} noted</small></div>
   {% for o in observations %}
@@ -71,13 +73,13 @@
   <p style="margin:6px 0">{{ o.text }}</p>{% if o.recommendation %}<p class="muted" style="margin:6px 0 0"><b style="color:var(--ink)">Recommendation:</b> {{ o.recommendation }}</p>{% endif %}</div>
   {% empty %}<p class="muted">No observation recorded.</p>{% endfor %}
 </section>
-<section class="card">
+{% if previous %}<section class="card">
   <div class="card-head"><h2>Follow-up on last audit</h2>{% if previous %}<small>Recommendations from {{ previous.audit_date|fdate }}</small>{% endif %}</div>
   {% for f in followups %}
   <div class="obs-card"><div class="row between"><strong>{{ f.previous_observation.category_label }}</strong>{% status_pill f.get_status_display f.tone %}</div>
   <p class="small" style="margin:6px 0 0">{{ f.previous_observation.recommendation }}</p>{% if f.note %}<p class="small muted" style="margin:4px 0 0">{{ f.note }}</p>{% endif %}</div>
   {% empty %}<p class="muted">{% if previous %}No follow-up recorded.{% else %}This is the first audit in this series, so there is nothing to follow up.{% endif %}</p>{% endfor %}
-</section>
+</section>{% endif %}
 </div>
 
 <section class="card">
