@@ -25,7 +25,7 @@ One line each: what, and why.
 - Staff can open every portal screen with a client picker (`?client=`); clients never see the picker and their client is fixed by their login.
 - "Last audit to latest" in store health uses the store's latest audit in the window and that audit's previous audit in the same series; Better/Worse needs a 0.15-point move, otherwise "About the same".
 - Aging "Net difference" uses the sale base over the audits that have a sale value when any audit in the period has one, otherwise the stock base.
-- PDFs use DejaVu Sans when it is installed (it has the ₹ and − glyphs); otherwise Helvetica with "Rs" and "-" so a PDF always renders. `PDF_FONT_PATH` can point at any TTF.
+- PDFs use DejaVu Sans, bundled in `core/fonts/` (free DejaVu licence) so ₹ and − print on servers without system fonts; `PDF_FONT_PATH` can point at another TTF. Helvetica with "Rs" remains only as a last resort.
 - Excel money cells use an Indian-grouping number format for positive values and plain grouping with a leading minus for negatives (Excel conditional formats cannot do both in one format).
 - "Waiting for files" means a live audit from the last 180 days without a signoff copy, photographs, the audit Excel or the variance report (scanned data is optional).
 - Stores above the Watch threshold on the Overview are judged on each store's latest published audit.
@@ -35,3 +35,4 @@ One line each: what, and why.
 - Editable observation templates: the model and lookup exist (`ObservationTemplate`); there is no admin screen for them yet (first item on the cut list).
 - Security warnings W019 (X-Frame-Options SAMEORIGIN, needed for the signoff preview) and W021 (HSTS preload) are silenced on purpose; W005 (HSTS include subdomains) stays visible and can be turned on with `SECURE_HSTS_INCLUDE_SUBDOMAINS=1` once the domain is final.
 - CI (GitHub Actions) runs ruff, pytest on PostgreSQL 16, pip-audit and `check --deploy --fail-level ERROR`.
+- `S3_UPLOAD_MODE=proxy` is the default: the browser posts to the app's signed upload endpoint and the app streams the file into the bucket (`upload_fileobj`), so Railway Buckets work without CORS. `direct` keeps the presigned POST. Downloads always use presigned GET links. Gunicorn's timeout is 120 seconds to give large proxied uploads time.

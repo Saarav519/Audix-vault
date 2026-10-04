@@ -167,3 +167,21 @@ def test_backup_without_bucket_fails_cleanly():
     with override_settings(BACKUP_S3_BUCKET_NAME=""):
         with pytest.raises(CommandError):
             call_command("backup_database")
+
+
+def test_pdf_uses_bundled_dejavu(monkeypatch):
+    import os
+
+    from core import exports
+
+    assert os.path.exists(exports.BUNDLED_FONT)
+    assert os.path.exists(exports.BUNDLED_FONT.replace("DejaVuSans.ttf", "DejaVuSans-Bold.ttf"))
+    # pretend the server has no system fonts at all (as on Railway)
+    monkeypatch.delenv("PDF_FONT_PATH", raising=False)
+    monkeypatch.setattr(exports, "FONT_PATHS", ["", exports.BUNDLED_FONT])
+    monkeypatch.setattr(exports, "_FONT", None)
+    regular, bold, has_rupee = exports.pdf_fonts()
+    assert (regular, bold, has_rupee) == ("AudixSans", "AudixSans-Bold", True)
+    assert exports.pdf_text("₹5,000") == "₹5,000"
+    data = exports.build_pdf(lambda: [exports.paragraph("Net −₹5,000")], "Client", "Test", "FY 2026-27")
+    assert data.startswith(b"%PDF") and b"DejaVuSans" in data

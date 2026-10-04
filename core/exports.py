@@ -114,8 +114,11 @@ def workbook_bytes(wb) -> bytes:
 # ---------------------------------------------------------------- PDF
 
 _FONT = None
+BUNDLED_FONT = os.path.join(os.path.dirname(__file__), "fonts", "DejaVuSans.ttf")
+# DejaVu Sans is bundled (core/fonts) so ₹ and − print on servers without system fonts, such as Railway.
 FONT_PATHS = [
     os.environ.get("PDF_FONT_PATH", ""),
+    BUNDLED_FONT,
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     "/usr/share/fonts/dejavu/DejaVuSans.ttf",
     "/usr/share/fonts/TTF/DejaVuSans.ttf",

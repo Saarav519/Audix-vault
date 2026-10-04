@@ -73,13 +73,14 @@ Tests need no internet: S3 is faked with `moto` and email uses Django's in-memor
 | `S3_BUCKET_NAME` | for files | — | Private bucket for audit files. Turns S3 storage on |
 | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_REGION` | with the bucket | region `auto` with an endpoint, else `ap-south-1` | Bucket credentials |
 | `S3_ADDRESSING_STYLE` | no | `path` with an endpoint, else `virtual` | S3 addressing style |
+| `S3_UPLOAD_MODE` | no | `proxy` | `proxy`: browsers upload to the app, which streams files into the bucket (works with Railway Buckets and any bucket without CORS rules). `direct`: browsers upload straight to the bucket with a presigned POST (needs a bucket CORS rule allowing `POST` from the portal domain). Downloads always use 10-minute presigned links |
 | `SIGNED_URL_MINUTES` | no | `10` | Default file-link lifetime (also editable in Settings) |
 | `ALLOW_LOCAL_STORAGE` | no | `0` | `1` stores files on local disk (development only; Railway disk is not permanent) |
 | `EMAIL_URL` | no | console output | e.g. `smtp+tls://user:pass@smtp.example.com:587` |
 | `DEFAULT_FROM_EMAIL` | no | `Audix Vault <no-reply@audix.local>` | Sender |
 | `SENTRY_DSN` | no | — | Error monitoring (personal data is scrubbed) |
 | `BACKUP_S3_ENDPOINT_URL`, `BACKUP_S3_BUCKET_NAME`, `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY`, `BACKUP_S3_REGION` | for backups | — | A separate bucket for database and file backups |
-| `PDF_FONT_PATH` | no | DejaVu Sans if installed | TTF font for PDFs (needs the ₹ glyph); falls back to Helvetica with "Rs" |
+| `PDF_FONT_PATH` | no | bundled DejaVu Sans | TTF font for PDFs. DejaVu Sans and DejaVu Sans Bold are bundled in `core/fonts/` (free licence in `LICENSE-DejaVu.txt`), so the ₹ sign prints on Railway. Set this only to use another font that has the ₹ glyph |
 | `LOG_LEVEL` | no | `INFO` | Logs go to stdout |
 
 Without a bucket the app still works: upload areas say "File storage is not configured yet".
@@ -100,9 +101,9 @@ Without a bucket the app still works: upload areas say "File storage is not conf
    DEMO_CLIENT_PASSWORD   = (password for the demo logins greenfield and urbanmart)
    ALLOW_LOCAL_STORAGE    = 1          (only until the bucket variables are added)
    ```
-4. Generate a public domain (Settings → Networking). Deploy. `railway.json` runs migrations, collects static files, creates the first admin, seeds the demo when allowed, and starts gunicorn. The health check is `/healthz`.
+4. Generate a public domain (Settings → Networking). Deploy. `railway.json` runs migrations, collects static files, creates the first admin, seeds the demo when allowed, and starts gunicorn (2 workers, 120-second timeout). The health check is `/healthz`.
 5. Open the domain and sign in with `ADMIN_LOGIN_ID`.
-6. Later: add a bucket and set `S3_ENDPOINT_URL`, `S3_BUCKET_NAME`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_REGION`; remove `ALLOW_LOCAL_STORAGE`; add `EMAIL_URL` and `DEFAULT_FROM_EMAIL`; remove `ALLOW_DEMO_SEED` (the demo data stays until you delete it or run `seed_demo --reset` with seeding allowed).
+6. Later: add a bucket and set `S3_ENDPOINT_URL`, `S3_BUCKET_NAME`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_REGION`; remove `ALLOW_LOCAL_STORAGE`. Leave `S3_UPLOAD_MODE` unset (`proxy`) for a Railway Bucket: uploads pass through the app, so the bucket needs no CORS setup; gunicorn's timeout is 120 seconds so a 50 MB file has time to finish on a slow connection. Then add `EMAIL_URL` and `DEFAULT_FROM_EMAIL`; remove `ALLOW_DEMO_SEED` (the demo data stays until you delete it or run `seed_demo --reset` with seeding allowed).
 
 ### Cron jobs (Railway cron services running the same image)
 
