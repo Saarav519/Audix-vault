@@ -78,7 +78,7 @@ def test_compare_shows_every_category_and_full_totals(pair, admin):
 
     only_a, only_b = row_of(t, names[2]), row_of(t, names[3])
     assert "Only in A" in only_a and "Only in B" in only_b
-    assert only_a.count("—") >= 7 + 2 + 4  # B side, change columns, B damage and WBC
+    assert only_a.count("—") >= 7 + 2  # B side, change columns
     assert only_b.count("—") >= 7 + 2  # A side, change columns
     assert [x.category for x in cmp.table_rows] == names
 

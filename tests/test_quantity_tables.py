@@ -71,6 +71,8 @@ def test_seven_categories_on_detail_compare_and_pdf(admin):
     for v in values(t) + values(prev.totals):
         assert v in foot, v
     assert ">Units<" in table and cmp.category_total.change_units.text in foot
+    # damage and WBC are part of Total physical, so they have no separate columns here
+    assert "damage" not in table.lower() and "WBC</th>" not in table
 
     # sign-off sheet
     pages, text = pdf(signoff.signoff_pdf(audit, "https://x/"))

@@ -4,6 +4,4 @@
 <td class="num gs {{ n.diff_value|money_class }}">{{ n.diff_qty|qty_signed }}</td><td class="num {{ n.diff_value|money_class }}">{{ n.diff_value|inr_signed }}</td>
 <td class="num">{{ n.var_pct|pct }}</td>{% else %}<td class="num gs muted">—</td><td class="num muted">—</td><td class="num gs muted">—</td><td class="num muted">—</td><td class="num gs muted">—</td><td class="num muted">—</td><td class="num muted">—</td>{% endif %}{% endfor %}
 {% if r.change_value %}<td class="num gs tone-{{ r.change_value.tone }}">{{ r.change_value.text }}</td><td class="num tone-{{ r.change_units.tone }}">{{ r.change_units.text }}</td>{% else %}<td class="num gs muted">—</td><td class="num muted">—</td>{% endif %}
-{% if r.b %}<td class="num gs">{{ r.b.damage_qty|qty }}</td><td class="num">{{ r.b.damage_value|inr }}<span class="sub">{{ r.b.damage_pct|pct }}</span></td>
-<td class="num gs">{{ r.b.wbc_qty|qty }}</td><td class="num">{{ r.b.wbc_value|inr }}<span class="sub">{{ r.b.wbc_pct|pct }}</span></td>{% else %}<td class="num gs muted">—</td><td class="num muted">—</td><td class="num gs muted">—</td><td class="num muted">—</td>{% endif %}
 <td class="gs">{% if r.verdict %}{% status_pill r.verdict r.verdict_tone %}{% endif %}</td></tr>

@@ -297,7 +297,7 @@ def comparison_pdf(client, a, b, cmp, period_text) -> bytes:
         if cmp.table_rows:
             s.append(ex.paragraph("Category by category", "h2"))
             rows = [["Category", "A stock", "B stock", "A difference", "A var %", "B difference", "B var %",
-                     "Change in value", "Change in units", "B damage", "B WBC", "Verdict"]]
+                     "Change in value", "Change in units", "Verdict"]]
             dash = "—"
             for r in cmp.table_rows + [cmp.category_total] + ([cmp.common_total] if cmp.one_sided_count else []):
                 na, nb = r.a, r.b
@@ -311,12 +311,10 @@ def comparison_pdf(client, a, b, cmp, period_text) -> bytes:
                     pct(nb.var_pct) if nb else dash,
                     r.change_value.text if r.change_value else dash,
                     r.change_units.text if r.change_units else dash,
-                    f"{qty(nb.damage_qty)} / {inr(nb.damage_value)} ({pct(nb.damage_pct)})" if nb else dash,
-                    f"{qty(nb.wbc_qty)} / {inr(nb.wbc_value)} ({pct(nb.wbc_pct)})" if nb else dash,
                     r.verdict,
                 ])
             extra = 2 if cmp.one_sided_count else 1
-            s.append(ex.pdf_table(rows, num_cols=tuple(range(1, 11)), footer=extra))
+            s.append(ex.pdf_table(rows, num_cols=tuple(range(1, 9)), footer=extra))
             s.append(ex.paragraph("Quantity / value, amounts in rupees.", "small"))
             if cmp.one_sided_count:
                 n = cmp.one_sided_count
