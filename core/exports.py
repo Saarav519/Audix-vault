@@ -36,7 +36,7 @@ def inr_number_format(value) -> str:
 
 
 class Sheet:
-    def __init__(self, ws, client_name: str, title: str, period: str):
+    def __init__(self, ws, client_name: str, title: str, period: str, period_label: str = "Period"):
         self.ws = ws
         lime = PatternFill("solid", fgColor="B9E10C")
         dark = PatternFill("solid", fgColor="12170F")
@@ -46,7 +46,7 @@ class Sheet:
             (FIRM, Font(bold=True, size=11, color="FFFFFF"), dark),
             (TAGLINE, Font(italic=True, size=10, color="B9E10C"), dark),
             (f"{title} · {client_name}", Font(bold=True, size=12), lime),
-            (f"Period: {period}", Font(size=10), None),
+            (f"{period_label}: {period}", Font(size=10), None),
             (f"Generated: {fmt_date(timezone.localdate())} {timezone.localtime():%H:%M} IST", Font(size=10, color="5A6556"), None),
         ]
         for i, (text, font, fill) in enumerate(rows, start=1):

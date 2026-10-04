@@ -1,6 +1,6 @@
 # Status
 
-Honest state of the build against the brief. Test suite: 125 tests (`pytest -q`), `ruff check .` clean, `manage.py check --deploy` shows no errors (one warning left on purpose: HSTS include-subdomains is an owner decision for the final domain), `pip-audit` finds no known vulnerabilities.
+Honest state of the build against the brief. Test suite: 218 tests (`pytest -q`), `ruff check .` clean, `manage.py check --deploy` shows no errors (one warning left on purpose: HSTS include-subdomains is an owner decision for the final domain), `pip-audit` finds no known vulnerabilities.
 
 ## Part B
 
@@ -44,6 +44,14 @@ Honest state of the build against the brief. Test suite: 125 tests (`pytest -q`)
 | 6 Admin extras, exports, email, backups | Done | Backups need a separate bucket (`BACKUP_S3_*`) and cron services on Railway. |
 | 7 Import and polish | Done | Responsive and dark mode checked with screenshots at 1366px and 390px. |
 | 8 Hardening and delivery | Done | Fresh-database deploy simulated with gunicorn, `DEBUG=0` and the Railway start command: health check 200, admin created, demo seeded, HTTPS redirect without loops. |
+
+## Later additions
+
+| Item | Status | Notes |
+|---|---|---|
+| One-page audit sign-off sheet (PDF) | Done | `reports/signoff.py`, `audits:signoff_sheet`; buttons on the detail and Add/Edit pages; draft watermark for staff; logged as an export. Tested with pypdf for one page, first audit (no "Last audit", "Compared with" or "Change vs"), 13, 20 and 30+ categories, long observations, client isolation and drafts. The `reference/signoff/` design files named in the request were not in the repository, so the layout follows the written request; it can be aligned once those files are added. |
+| Filtered exports and admin Audits filters | Done | Portal and admin exports describe every active filter and the count, contain exactly the filtered rows across pages (5,000 cap stated in the file when hit). Admin Audits page gained Store (after choosing a client), Audit type, Shift, Period and Status filters plus Export Excel and Export PDF for admins and auditors. |
+| No comparison for a first audit | Done | Detail page and Add/Edit preview show "First audit for this store." and hide the last-audit columns, comparison and follow-up step. Compare page unchanged. |
 
 ## Known gaps and items for the owner
 

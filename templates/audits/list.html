@@ -1,14 +1,22 @@
 {% extends "base.html" %}{% load audix %}
 {% block title %}Audits{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Audits</h1><p>Drafts and published audits for every client.</p></div><a class="btn btn-primary" href="{% url 'audits:new' %}">{% icon "plus" %} Add audit</a></div>
+<div class="page-head"><div><h1>Audits</h1><p>Drafts and published audits for every client.</p></div><div class="row">
+    <a class="btn" href="{% url 'audits:export' 'xlsx' %}{% if export_query %}?{{ export_query }}{% endif %}">{% icon "download" %} Export Excel</a>
+    <a class="btn" href="{% url 'audits:export' 'pdf' %}{% if export_query %}?{{ export_query }}{% endif %}">{% icon "download" %} Export PDF</a>
+    <a class="btn btn-primary" href="{% url 'audits:new' %}">{% icon "plus" %} Add audit</a></div></div>
 <div class="card">
 <form class="filters" method="get" style="margin-bottom:12px">
   <div class="field"><label for="f-client">Client</label><select id="f-client" name="client" data-autosubmit><option value="">All clients</option>{% for c in clients %}<option value="{{ c.pk }}" {% if f.client == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="f-store">Store</label>{% if f.client %}<select id="f-store" name="store" data-autosubmit><option value="">All stores</option>{% for s in stores %}<option value="{{ s.pk }}" {% if f.store == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.code }} · {{ s.name }}</option>{% endfor %}</select>{% else %}<select id="f-store" disabled title="Choose a client first"><option>Choose a client first</option></select>{% endif %}</div>
+  <div class="field"><label for="f-type">Audit type</label><select id="f-type" name="type" data-autosubmit><option value="">All types</option>{% for v, l in types %}<option value="{{ v }}" {% if f.type == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="f-shift">Shift</label><select id="f-shift" name="shift" data-autosubmit><option value="">All shifts</option>{% for v, l in shifts %}<option value="{{ v }}" {% if f.shift == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="f-period">Period</label><select id="f-period" name="period" data-autosubmit>{% for v, l in periods %}<option value="{{ v }}" {% if f.period == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
   <div class="field"><label for="f-status">Status</label><select id="f-status" name="status" data-autosubmit><option value="">Drafts and published</option><option value="draft" {% if f.status == "draft" %}selected{% endif %}>Drafts</option><option value="published" {% if f.status == "published" %}selected{% endif %}>Published</option></select></div>
   <div class="field"><label for="f-q">Search</label><input id="f-q" type="search" name="q" value="{{ f.q }}" placeholder="Reference, store, client"></div>
   <button class="btn" type="submit">Filter</button>
 </form>
+<p class="muted small" data-count style="margin:0 0 8px">{{ page.paginator.count }} audit{{ page.paginator.count|pluralize }}</p>
 <div class="table-wrap"><table class="table">
 <thead><tr><th>Date</th><th>Reference</th><th>Client</th><th>Store</th><th>Type</th><th class="num">Difference</th><th class="num">Var %</th><th>Status</th><th>Files</th><th></th></tr></thead>
 <tbody>{% for a in page %}

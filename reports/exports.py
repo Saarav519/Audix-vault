@@ -16,7 +16,7 @@ from core.formatting import fmt_date, inr, pct
 from core.permissions import portal_required
 from reports.aging import build_aging
 from reports.queries import window_totals
-from reports.views import PERIODS, aging_inputs, filtered_audits, resolve
+from reports.views import aging_inputs, describe_audit_filters, filtered_audits, resolve, scope_stores
 
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
@@ -157,64 +157,109 @@ def aging_pdf(client, rep, period_text) -> bytes:
 # ---------------------------------------------------------------- audits summary
 
 
+EXPORT_CAP = 5000
+
+
 @portal_required
 def audits_export(request, fmt):
     if fmt not in ("xlsx", "pdf"):
         raise Http404
     client, scope, _ = resolve(request)
     qs, f = filtered_audits(request, scope)
-    audits = list(qs[:5000])
+    filters = describe_audit_filters(f, scope_stores(client, scope))
+    return export_audits(request, fmt, qs, filters, client.name, _slug(client), client=client)
+
+
+def export_audits(request, fmt, qs, filters, letter_name, file_slug, client=None, include_client=False):
+    """Audits summary export shared by the portal and the admin Audits page. `qs` is the filtered queryset,
+    exactly as the list shows it; `filters` is describe_audit_filters() output."""
+    total = qs.count()
+    audits = list(qs.select_related("store", "client")[:EXPORT_CAP])
     summary = window_totals(qs)
-    period_text = dict(PERIODS).get(f["period"], "Any time") + (f" · search “{f['q']}”" if f["q"] else "")
-    log(request, ActionType.EXPORT, f"Exported audits summary ({fmt.upper()})", detail=period_text, client=client)
-    name = f"audix-audits-{_slug(client)}-{ex.stamp()}.{fmt}"
+    filter_text = filters_text(filters)
+    count_text = f"{total} audit{'s' if total != 1 else ''}"
+    if total > EXPORT_CAP:
+        count_text = (f"Showing the first {EXPORT_CAP:,} of {total:,} audits (export limit). "
+                      "Narrow the filters to export the rest.")
+    log(request, ActionType.EXPORT, f"Exported audits summary ({fmt.upper()})", detail=filter_text, client=client)
+    name = f"audix-audits-{file_slug}-{ex.stamp()}.{fmt}"
+    args = (letter_name, audits, summary, filter_text, count_text, include_client)
     if fmt == "xlsx":
-        return _response(audits_xlsx(client, audits, summary, period_text), XLSX, name)
-    return _response(audits_pdf(client, audits, summary, period_text), "application/pdf", name)
+        return _response(audits_xlsx(*args), XLSX, name)
+    return _response(audits_pdf(*args), "application/pdf", name)
+
+
+def filters_text(filters) -> str:
+    return " · ".join(f"{k}: {v}" for k, v in filters)
 
 
 AUDIT_COLS = ["Date", "Reference", "Store ID", "Store", "Audit type", "Shift", "Stock value", "Total physical",
               "Difference", "Var % of stock value", "Var % of sale value", "Status"]
 
 
-def audits_xlsx(client, audits, summary, period_text) -> bytes:
+def _status(a):
+    return a.status_label if a.is_published else a.get_status_display()
+
+
+def audits_xlsx(letter_name, audits, summary, filter_text, count_text, include_client=False) -> bytes:
     wb, ws = ex.new_workbook()
     ws.title = "Audits"
-    sh = ex.Sheet(ws, client.name, "Audits summary", period_text)
-    sh.add([f"{summary['audits']} audits", "Stock value", summary["stock_value"], "Shortage", summary["shortage"],
+    sh = ex.Sheet(ws, letter_name, "Audits summary", filter_text, period_label="Filters")
+    sh.add(["Filters", filter_text], bold=True)
+    sh.add(["Audits", count_text])
+    sh.add(["Totals", "Stock value", summary["stock_value"], "Shortage", summary["shortage"],
             "Excess", summary["excess"], "Net", summary["diff_value"]],
            [None, None, "inr", None, "inr", None, "inr", None, "inr"], bold=True)
     sh.row += 1
-    sh.header(AUDIT_COLS, [13, 15, 9, 26, 20, 11, 15, 15, 15, 12, 12, 10])
+    cols, widths = list(AUDIT_COLS), [13, 15, 9, 26, 20, 11, 15, 15, 15, 12, 12, 10]
+    if include_client:
+        cols.insert(2, "Client")
+        widths.insert(2, 20)
+    sh.header(cols, widths)
     for a in audits:
-        sh.add([a.audit_date, a.reference, a.store.code, f"{a.store.name}, {a.store.city}", a.get_audit_type_display(),
-                a.get_shift_display(), a.stock_value, a.total_value, a.diff_value, a.var_pct_stock,
-                a.var_pct_sale, a.status_label],
-               ["date", None, None, None, None, None, "inr", "inr", "inr", "pct", "pct" if a.var_pct_sale is not None else None, None])
+        row = [a.audit_date, a.reference, a.store.code, f"{a.store.name}, {a.store.city}", a.get_audit_type_display(),
+               a.get_shift_display(), a.stock_value, a.total_value, a.diff_value, a.var_pct_stock,
+               a.var_pct_sale, _status(a)]
+        kinds = ["date", None, None, None, None, None, "inr", "inr", "inr", "pct",
+                 "pct" if a.var_pct_sale is not None else None, None]
+        if include_client:
+            row.insert(2, a.client.name)
+            kinds.insert(2, None)
+        sh.add(row, kinds)
     sh.footer()
     return ex.workbook_bytes(wb)
 
 
-def audits_pdf(client, audits, summary, period_text) -> bytes:
+def audits_pdf(letter_name, audits, summary, filter_text, count_text, include_client=False) -> bytes:
     from reportlab.lib.units import mm
 
     def story():
         s = [ex.paragraph("Audits summary", "h1"),
-             ex.paragraph(f"{summary['audits']} audits · Stock value {inr(summary['stock_value'])} · Shortage "
+             ex.paragraph(f"Filters: {filter_text}", "bold"),
+             ex.paragraph(count_text, "body"),
+             ex.paragraph(f"Stock value {inr(summary['stock_value'])} · Shortage "
                           f"{inr(summary['shortage'])} · Excess {inr(summary['excess'])} · Net {inr(summary['diff_value'])} "
                           f"({pct(summary['var_pct'])} of stock value)", "body")]
-        rows = [["Date", "Reference", "Store", "Audit type", "Shift", "Stock value", "Total physical", "Difference",
-                 "Var %", "Status"]]
+        head = ["Date", "Reference", "Store", "Audit type", "Shift", "Stock value", "Total physical", "Difference",
+                "Var %", "Status"]
+        widths = [22, 26, 42, 30, 18, 27, 27, 25, 32, 18]
+        if include_client:
+            head.insert(2, "Client")
+            widths = [20, 25, 30, 36, 26, 16, 25, 25, 23, 30, 18]
+        rows = [head]
         for a in audits:
             v = f"{pct(a.var_pct_stock)} of stock" + (f"\n{pct(a.var_pct_sale)} of sale" if a.var_pct_sale is not None else "")
-            rows.append([fmt_date(a.audit_date), a.reference, f"{a.store.code} {a.store.name}", a.get_audit_type_display(),
-                         a.get_shift_display(), inr(a.stock_value), inr(a.total_value), inr(a.diff_value), v,
-                         a.status_label])
-        s.append(ex.pdf_table(rows, col_widths=[22 * mm, 26 * mm, 42 * mm, 30 * mm, 18 * mm, 27 * mm, 27 * mm,
-                                                25 * mm, 32 * mm, 18 * mm], num_cols=(5, 6, 7, 8)))
+            row = [fmt_date(a.audit_date), a.reference, f"{a.store.code} {a.store.name}", a.get_audit_type_display(),
+                   a.get_shift_display(), inr(a.stock_value), inr(a.total_value), inr(a.diff_value), v, _status(a)]
+            if include_client:
+                row.insert(2, a.client.name)
+            rows.append(row)
+        off = 1 if include_client else 0
+        s.append(ex.pdf_table(rows, col_widths=[w * mm for w in widths],
+                              num_cols=tuple(c + off for c in (5, 6, 7, 8))))
         return s
 
-    return ex.build_pdf(story, client.name, "Audits summary", period_text)
+    return ex.build_pdf(story, letter_name, "Audits summary", filter_text)
 
 
 # ---------------------------------------------------------------- comparison

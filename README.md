@@ -6,7 +6,9 @@
 - the signoff copy and evidence photographs (preview and download), plus the audit Excel, variance report and scanned data (download only);
 - a dashboard with daily, weekly, monthly and yearly summaries;
 - a comparison of any two audits (value and percentage, category by category, with follow-ups and improvement points);
-- a yearly audit aging report against the 90-day audit cycle, with Excel and PDF export.
+- a yearly audit aging report against the 90-day audit cycle, with Excel and PDF export;
+- a one-page audit sign-off sheet (PDF) for each audit, to print, sign at the store and upload back as the signoff copy;
+- Excel and PDF exports of the audits list that contain exactly the filtered rows and name every active filter.
 
 The audit summary table is the single source of truth: every number on every screen, export and email is computed from the saved category lines by `core/calc.py`. Uploaded files are stored and downloaded, never parsed.
 
@@ -23,6 +25,12 @@ Python 3.12, Django 5.2, PostgreSQL, server-rendered templates with HTMX, server
 | `reports` | dashboard, all audits, tracker, compare, aging report, exports, admin overview |
 | `activity` | append-only activity log and its page |
 | `notifications` | branded emails and their cron commands |
+
+## Sign-off sheet, filtered exports, first audits
+
+- **Sign-off sheet.** "Download sign-off sheet (PDF)" on the audit detail page and on the Add/Edit page (once the draft is saved) calls `/audits/<id>/signoff-sheet/` and returns `audix-signoff-<client>-<store>-<reference>.pdf`: one A4 portrait page with the header, store and audit boxes, KPI tiles, store summary, comparison with the last audit (or "This audit at a glance" for a first audit), the category table, observations and next steps, the declaration with three signature boxes, and a footer with a QR code to the audit. Staff can download drafts (marked "DRAFT, not final"); clients only their own published audits. Up to 13 categories use one table, 14 to 26 two side-by-side tables, more than 26 the 24 largest shortages plus "Other". Built in `reports/signoff.py`; numbers come from `core/calc.py`. The QR uses `PORTAL_BASE_URL`, or the request host when it is not set.
+- **Filtered exports.** The portal All audits page and the admin Audits page (Client, Store, Audit type, Shift, Period, Status, Search) export to Excel and PDF with the current filters. Each file has a "Filters" line (store code and name, audit type, shift, period, search, plus client and status on the admin side) and the audit count, and holds every filtered row across all pages, up to 5,000; above that the file says it shows the first 5,000. Admin and auditor logins can use the admin export; one shared function (`reports.exports.export_audits`) builds both.
+- **First audit.** When a store has no earlier audit in the same series, the detail page and the Add/Edit preview say "First audit for this store." and show no last-audit columns, comparison or follow-up step. The Compare page is unchanged.
 
 ## Run it
 

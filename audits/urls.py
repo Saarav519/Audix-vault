@@ -5,6 +5,7 @@ from audits import detail_views, views
 app_name = "audits"
 urlpatterns = [
     path("console/audits/", views.audit_list, name="list"),
+    path("console/audits/export/<str:fmt>/", views.audit_export, name="export"),
     path("console/audits/new/", views.audit_new, name="new"),
     path("console/audits/preview/", views.audit_preview, name="preview"),
     path("console/audits/suggest/", views.suggest_drafts, name="suggest"),

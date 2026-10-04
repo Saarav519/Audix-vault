@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import date
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db.models import Count, Q
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -197,27 +200,75 @@ def suggest_drafts(request):
         "obs_rows": rows, "categories": categories, "kinds": ObservationKind.choices, "severities": Severity.choices})
 
 
+def admin_audits(params):
+    """The admin Audits list filters: client and status here, the rest shared with the portal list.
+    Returns (queryset, filter values, chosen client, that client's stores)."""
+    from reports.views import apply_audit_filters
+
+    qs = Audit.objects.live().select_related("client", "store")
+    client = None
+    cid = (params.get("client") or "").strip()
+    if cid:
+        try:
+            client = Client.objects.filter(pk=uuid.UUID(cid)).first()
+        except ValueError:
+            client = None
+    stores = list(client.stores.order_by("code")) if client else []
+    params = params.copy()
+    if not any(str(s.pk) == params.get("store") for s in stores):
+        params["store"] = ""  # the store filter only applies within the chosen client
+    if client:
+        qs = qs.filter(client=client)
+    status = params.get("status", "")
+    if status in (AuditStatus.DRAFT, AuditStatus.PUBLISHED):
+        qs = qs.filter(status=status)
+    else:
+        status = ""
+    qs, f = apply_audit_filters(qs, params, search_client_name=True)
+    f.update(client=str(client.pk) if client else "", status=status)
+    return qs, f, client, stores
+
+
+def describe_admin_filters(f, client, stores):
+    from reports.views import describe_audit_filters
+
+    extra = [("Client", client.name if client else "All clients")]
+    if f["status"]:
+        extra.append(("Status", dict(AuditStatus.choices)[f["status"]]))
+    else:
+        extra.append(("Status", "Drafts and published"))
+    return describe_audit_filters(f, stores, extra)
+
+
 @staff_required
 def audit_list(request):
-    qs = Audit.objects.live().select_related("client", "store").annotate(
+    from reports.views import PERIODS
+
+    qs, f, client, stores = admin_audits(request.GET)
+    qs = qs.annotate(
         signoff_count=Count("files", filter=Q(files__kind=FileKind.SIGNOFF, files__is_deleted=False)),
         photo_count=Count("files", filter=Q(files__kind=FileKind.PHOTO, files__is_deleted=False)),
     )
-    clients = Client.objects.order_by("name")
-    f = {k: request.GET.get(k, "") for k in ("client", "status", "q")}
-    if f["client"]:
-        try:
-            qs = qs.filter(client_id=f["client"])
-        except Exception:
-            pass
-    if f["status"] in (AuditStatus.DRAFT, AuditStatus.PUBLISHED):
-        qs = qs.filter(status=f["status"])
-    if f["q"]:
-        q = f["q"]
-        qs = qs.filter(Q(reference__icontains=q) | Q(store__name__icontains=q) | Q(store__code__icontains=q)
-                       | Q(store__city__icontains=q) | Q(client__name__icontains=q))
-    page = Paginator(qs.order_by("-audit_date", "-created_at"), 25).get_page(request.GET.get("page"))
-    return render(request, "audits/list.html", {"page": page, "clients": clients, "f": f})
+    page = Paginator(qs, 25).get_page(request.GET.get("page"))
+    return render(request, "audits/list.html", {
+        "page": page, "clients": Client.objects.order_by("name"), "f": f, "stores": stores,
+        "types": AuditType.choices, "shifts": Shift.choices, "periods": PERIODS,
+        "export_query": urlencode({k: v for k, v in f.items() if v}),
+    })
+
+
+@staff_required
+def audit_export(request, fmt):
+    """Excel or PDF of exactly the audits the admin list shows, across all pages."""
+    from reports.exports import export_audits
+
+    if fmt not in ("xlsx", "pdf"):
+        raise Http404
+    qs, f, client, stores = admin_audits(request.GET)
+    filters = describe_admin_filters(f, client, stores)
+    return export_audits(request, fmt, qs, filters, client.name if client else "All clients",
+                         (client.slug or "client") if client else "all-clients", client=client,
+                         include_client=client is None)
 
 
 @admin_required

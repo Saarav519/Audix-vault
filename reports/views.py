@@ -185,18 +185,26 @@ def _parse_date(text):
     return None, None
 
 
-def filtered_audits(request, scope):
-    qs = Audit.objects.for_scope(scope).select_related("store")
-    f = {k: (request.GET.get(k) or "").strip() for k in ("q", "store", "type", "shift", "period")}
+FILTER_KEYS = ("q", "store", "type", "shift", "period")
+
+
+def apply_audit_filters(qs, params, search_client_name=False):
+    """Store, audit type, shift, period and search filters shared by the portal list, the admin list and
+    their exports. Returns (queryset, filter values)."""
+    f = {k: (params.get(k) or "").strip() for k in FILTER_KEYS}
     if f["store"]:
         try:
             qs = qs.filter(store_id=uuid.UUID(f["store"]))
         except ValueError:
-            pass
+            f["store"] = ""
     if f["type"] in AuditType.values:
         qs = qs.filter(audit_type=f["type"])
+    else:
+        f["type"] = ""
     if f["shift"] in Shift.values:
         qs = qs.filter(shift=f["shift"])
+    else:
+        f["shift"] = ""
     t = today()
     fy = calc.current_fy(t)
     if f["period"] == "30":
@@ -211,10 +219,14 @@ def filtered_audits(request, scope):
         qs = qs.filter(audit_date__gte=p.start, audit_date__lte=p.end)
     elif f["period"] == "cy":
         qs = qs.filter(audit_date__year=t.year)
+    else:
+        f["period"] = ""
     if f["q"]:
         q = f["q"]
         cond = (Q(reference__icontains=q) | Q(store__name__icontains=q) | Q(store__code__icontains=q)
                 | Q(store__city__icontains=q))
+        if search_client_name:
+            cond |= Q(client__name__icontains=q)
         tv = [v for label, v in TYPE_WORDS.items() if q.lower() in label]
         if tv:
             cond |= Q(audit_type__in=tv)
@@ -225,6 +237,27 @@ def filtered_audits(request, scope):
             cond |= Q(audit_date=d)
         qs = qs.filter(cond)
     return qs.order_by("-audit_date", "-created_at"), f
+
+
+def describe_audit_filters(f, stores=(), extra=()) -> list[tuple[str, str]]:
+    """Human-readable list of the active filters, for export headers."""
+    out = list(extra)
+    if f.get("store"):
+        store = next((s for s in stores if str(s.pk) == f["store"]), None)
+        if store is not None:
+            out.append(("Store", f"{store.code} · {store.name}" + (f", {store.city}" if store.city else "")))
+    if f.get("type"):
+        out.append(("Audit type", dict(AuditType.choices)[f["type"]]))
+    if f.get("shift"):
+        out.append(("Shift", dict(Shift.choices)[f["shift"]]))
+    out.append(("Period", dict(PERIODS).get(f.get("period", ""), "Any time")))
+    if f.get("q"):
+        out.append(("Search", f"“{f['q']}”"))
+    return out
+
+
+def filtered_audits(request, scope):
+    return apply_audit_filters(Audit.objects.for_scope(scope).select_related("store"), request.GET)
 
 
 @portal_required
