@@ -4,9 +4,8 @@ from datetime import timedelta
 
 from django.db.models import Count, Max, Q
 from django.shortcuts import render
-from django.utils import timezone
-
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import CLIENT_ROLES
 from activity.models import ActionType, ActivityLog
