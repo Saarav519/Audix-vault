@@ -383,3 +383,12 @@ table.table { width: 100%; border-collapse: collapse; font-size: 14px; }
   :root:not([data-theme="light"]) .theme-btn .i-moon { display: none; }
   :root:not([data-theme="light"]) .theme-btn .i-sun { display: inline-grid; }
 }
+
+/* modal dialog (quick add store) */
+dialog.modal { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--ink); padding: 0; width: min(440px, calc(100% - 32px)); max-height: calc(100vh - 32px); }
+dialog.modal::backdrop { background: rgba(4,18,22,.6); }
+dialog.modal form { margin: 0; }
+.modal-head { padding: 18px 20px 6px; } .modal-head h2 { margin: 0 0 4px; } .modal-head .hint { margin: 0; }
+.modal-body { padding: 10px 20px 4px; }
+.modal-body .messages { margin: 0 0 12px; }
+.modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px 18px; border-top: 1px solid var(--line); }

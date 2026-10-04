@@ -34,8 +34,22 @@ MAX_VALUE = Decimal("999999999999")
 OBS_RE = re.compile(r"^obs-(\d+)-text$")
 
 
+NEW_STORE_VALUE = "__new__"  # never a store id (store ids are UUIDs)
+
+
+class StoreSelect(forms.Select):
+    """Store dropdown with a last "+ Add new store..." option that opens the quick-add dialog."""
+
+    def optgroups(self, name, value, attrs=None):
+        groups = super().optgroups(name, value, attrs)
+        index = len(groups)
+        groups.append((None, [self.create_option(name, NEW_STORE_VALUE, "+ Add new store...", False, index)], index))
+        return groups
+
+
 class HeaderForm(forms.Form):
-    store = forms.ModelChoiceField(queryset=Store.objects.none(), empty_label="Choose a store")
+    store = forms.ModelChoiceField(queryset=Store.objects.none(), empty_label="Choose a store",
+                                   widget=StoreSelect(attrs={"data-store-select": ""}))
     audit_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
     audit_type = forms.ChoiceField(choices=AuditType.choices)
     shift = forms.ChoiceField(choices=Shift.choices)
@@ -51,7 +65,7 @@ class HeaderForm(forms.Form):
         else:
             qs = qs.filter(is_active=True)
         self.fields["store"].queryset = qs.order_by("code")
-        self.fields["store"].label_from_instance = lambda s: f"{s.code} · {s.name}, {s.city}" if s.city else f"{s.code} · {s.name}"
+        self.fields["store"].label_from_instance = lambda s: s.option_label
         self.fields["audit_date"].widget.attrs["max"] = timezone.localdate().isoformat()
 
     def clean_sale_value(self):

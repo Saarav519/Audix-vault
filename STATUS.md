@@ -20,7 +20,7 @@ Honest state of the build against the brief. Test suite: 125 tests (`pytest -q`)
 | 5.14 Compare page | Done | |
 | 6 Screens: client portal | Done | Audit detail opens as a slide-in panel on desktop and as a page on mobile. |
 | 6 Screens: admin console | Done | Overview, clients, add audit, aging, compare, activity log, settings (thresholds, cycle, toggles, session timeout, link expiry, backup status), team logins. |
-| 7 Add audit | Done | Six steps, live server preview, paste from Excel, warnings (duplicate, zero physical, unusual sale value), draft/publish, edit trail, soft delete. |
+| 7 Add audit | Done | Six steps, live server preview, paste from Excel, warnings (duplicate, zero physical, unusual sale value), draft/publish, edit trail, soft delete. Admins and auditors can add a missing store from the Store dropdown ("+ Add new store...") without leaving the page; duplicates by code or by name and city are refused, and each addition is logged. |
 | 8 Data model | Done | UUID keys, Decimal fields, the listed indexes. |
 | 9 Files and storage | Done | Presigned upload with confirm, type and size rules, HEIC to JPEG (needs the `pillow-heif` wheel), GPS removed from photos, thumbnails, 10-minute logged links, ZIP streaming with a 500 MB cap. |
 | 10 Security | Done | Argon2, 10-character minimum, axes lockout, idle timeout, secure cookies, HSTS, CSP, CSRF, isolation tests, logged view-as-client. Sentry is wired but not tested against a real DSN. |

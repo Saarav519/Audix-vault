@@ -1,3 +1,4 @@
+import re
 import secrets
 import string
 
@@ -170,6 +171,43 @@ class StoreForm(forms.ModelForm):
         if qs.exists():
             raise forms.ValidationError("This store code already exists for this client.")
         return code
+
+
+STORE_CODE_RE = re.compile(r"^S(\d+)$", re.IGNORECASE)
+
+
+def next_store_code(client) -> str:
+    """Next free auto code for a client: S001, S002, ... (after the highest existing S-number)."""
+    codes = {c.upper() for c in Store.objects.filter(client=client).values_list("code", flat=True)}
+    numbers = [int(m.group(1)) for c in codes if (m := STORE_CODE_RE.match(c))]
+    n = max(numbers, default=0) + 1
+    while f"S{n:03d}" in codes:
+        n += 1
+    return f"S{n:03d}"
+
+
+class QuickStoreForm(StoreForm):
+    """Add a store from the Add audit page: code optional (auto-generated), no duplicate name + city."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["code"].required = False
+        self.fields["name"].required = True
+
+    def clean_code(self):
+        if not (self.cleaned_data.get("code") or "").strip():
+            return next_store_code(self.client)
+        return super().clean_code()
+
+    def clean(self):
+        data = super().clean()
+        name, city = (data.get("name") or "").strip(), (data.get("city") or "").strip()
+        if name:
+            same = Store.objects.filter(client=self.client, is_active=True, name__iexact=name, city__iexact=city).first()
+            if same:
+                raise forms.ValidationError(
+                    f"{same.option_label} already exists for this client. Pick it from the store list instead.")
+        return data
 
 
 class CategoryForm(forms.ModelForm):

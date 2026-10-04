@@ -106,6 +106,18 @@
   {% endif %}
 </div>
 </form>
+<dialog class="modal" id="quick-store" aria-labelledby="quick-store-h" data-url="{% url 'console:store_quick_add' client.pk %}">
+  <form id="quick-store-form" novalidate>
+    <div class="modal-head"><h2 id="quick-store-h">Add a new store</h2><p class="hint">For {{ client.name }}. It is added to the store list and selected for this audit.</p></div>
+    <div class="modal-body">
+      <ul class="messages" data-qs-errors hidden role="alert"></ul>
+      <div class="field"><label for="qs-name">Store name</label><input id="qs-name" name="name" maxlength="120" required autocomplete="off"></div>
+      <div class="field"><label for="qs-city">City <span class="muted small">(optional)</span></label><input id="qs-city" name="city" maxlength="80" autocomplete="off"></div>
+      <div class="field"><label for="qs-code">Store code <span class="muted small">(optional)</span></label><input id="qs-code" name="code" maxlength="30" autocomplete="off" aria-describedby="qs-code-help"><span class="help" id="qs-code-help">Leave empty to create the next free code (S001, S002, ...).</span></div>
+    </div>
+    <div class="modal-foot"><button class="btn" type="button" data-qs-cancel>Cancel</button><button class="btn btn-primary" type="submit" data-qs-save>Save store</button></div>
+  </form>
+</dialog>
 {% for f in files %}<form id="del-{{ f.pk }}" method="post" action="{% url 'audits:file_delete' audit.pk f.pk %}" data-confirm="Remove {{ f.original_name }}?">{% csrf_token %}</form>{% endfor %}
 {% if audit and user.is_admin %}
 <form method="post" action="{% url 'audits:delete' audit.pk %}" data-confirm="Delete {{ audit.reference }}? It will be hidden everywhere." style="margin-top:12px">{% csrf_token %}<button class="btn btn-danger btn-sm" type="submit">Delete audit</button></form>

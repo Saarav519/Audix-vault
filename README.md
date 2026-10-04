@@ -132,7 +132,7 @@ It only works for a login with the Admin role; client and auditor passwords are 
 1. Sign in as admin → **Clients** → **Create client**.
 2. Enter the company name, contact emails, a login ID and a temporary password (**Generate** makes one), an optional logo, the stores (`code, name, city` per line) and the categories (the default list is filled in).
 3. Share the login ID and temporary password with the client. They choose a new password at first sign-in.
-4. **Add audit** → pick the client → fill the six steps → **Publish**. The client gets a "New audit" email if notifications are on.
+4. **Add audit** → pick the client → fill the six steps → **Publish**. A store that is not in the list yet can be added on the spot: choose **+ Add new store...** in the Store dropdown (name required; city and code optional, a blank code becomes the next free S001, S002, ...). The client gets a "New audit" email if notifications are on.
 
 Use **View as client** on a client's page to see exactly what they see (read-only, bannered and logged).
 

@@ -163,3 +163,72 @@
     });
   });
 })();
+
+// ---------- add a new store from the Store dropdown (no page reload, nothing entered is lost)
+(function () {
+  "use strict";
+  var select = document.querySelector("[data-store-select]");
+  var dialog = document.getElementById("quick-store");
+  var form = document.getElementById("quick-store-form");
+  if (!select || !dialog || !form || typeof dialog.showModal !== "function") return;
+  var NEW = "__new__";
+  var previous = select.value === NEW ? "" : select.value;
+  var saved = false;
+  var errorsBox = form.querySelector("[data-qs-errors]");
+  var saveBtn = form.querySelector("[data-qs-save]");
+
+  function showErrors(errors) {
+    errorsBox.innerHTML = "";
+    Object.keys(errors).forEach(function (field) {
+      errors[field].forEach(function (msg) {
+        var li = document.createElement("li");
+        li.className = "error";
+        li.textContent = (field === "__all__" ? "" : field.charAt(0).toUpperCase() + field.slice(1) + ": ") + msg;
+        errorsBox.appendChild(li);
+      });
+    });
+    errorsBox.hidden = !errorsBox.children.length;
+  }
+
+  // Capture phase: runs before the audit form's live-preview listener sees the change.
+  select.addEventListener("change", function (e) {
+    if (select.value !== NEW) { previous = select.value; return; }
+    e.stopPropagation();
+    saved = false;
+    form.reset();
+    showErrors({});
+    dialog.showModal();
+    form.querySelector("#qs-name").focus();
+  }, true);
+
+  dialog.addEventListener("close", function () {
+    if (!saved) select.value = previous;  // Cancel / Esc: back to the store chosen before
+    select.focus();
+  });
+  form.querySelector("[data-qs-cancel]").addEventListener("click", function () { dialog.close(); });
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var name = form.querySelector("#qs-name");
+    if (!name.value.trim()) { showErrors({name: ["Enter the store name."]}); name.focus(); return; }
+    var csrf = document.querySelector("#audit-form [name=csrfmiddlewaretoken]").value;
+    saveBtn.disabled = true;
+    fetch(dialog.getAttribute("data-url"), {method: "POST", body: new FormData(form), credentials: "same-origin",
+      headers: {"X-CSRFToken": csrf, "X-Requested-With": "fetch"}})
+      .then(function (r) { return r.json().then(function (j) { return {ok: r.ok, body: j}; }); })
+      .then(function (res) {
+        if (!res.ok) { showErrors(res.body.errors || {__all__: ["The store could not be added."]}); return; }
+        var opt = document.createElement("option");
+        opt.value = res.body.id;
+        opt.textContent = res.body.label;
+        select.insertBefore(opt, select.querySelector('option[value="' + NEW + '"]'));
+        select.value = res.body.id;
+        previous = res.body.id;
+        saved = true;
+        dialog.close();
+        select.dispatchEvent(new Event("change", {bubbles: true}));  // live preview recalculates
+      })
+      .catch(function () { showErrors({__all__: ["Network error. Please try again."]}); })
+      .finally(function () { saveBtn.disabled = false; });
+  });
+})();

@@ -71,6 +71,11 @@ class Store(UUIDModel):
     def place(self):
         return self.city or self.name
 
+    @property
+    def option_label(self):
+        """Label used in store dropdowns: "CODE · Name, City"."""
+        return f"{self.code} · {self.name}, {self.city}" if self.city else f"{self.code} · {self.name}"
+
 
 class Category(UUIDModel):
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name="categories")

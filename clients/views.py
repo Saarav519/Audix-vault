@@ -3,7 +3,7 @@
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Count, Max, Q
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
@@ -14,7 +14,7 @@ from clients import forms
 from clients.models import Category, Client, Store
 from core import storage
 from core.models import AppSettings
-from core.permissions import admin_required
+from core.permissions import admin_required, staff_required
 from core.scoping import VIEW_AS_SESSION_KEY
 
 
@@ -155,6 +155,22 @@ def store_add(request, pk):
     else:
         messages.error(request, "Store not added: " + "; ".join(e for errs in form.errors.values() for e in errs))
     return redirect("console:client_detail", client.pk)
+
+
+@staff_required
+@require_POST
+def store_quick_add(request, pk):
+    """Add a store from the Add audit page (admin and auditor). JSON in, JSON out."""
+    client = get_object_or_404(Client, pk=pk, is_active=True)
+    form = forms.QuickStoreForm(request.POST, client=client)
+    if not form.is_valid():
+        errors = {field: [str(e) for e in errs] for field, errs in form.errors.items()}
+        return JsonResponse({"errors": errors}, status=400)
+    store = form.save(commit=False)
+    store.client = client
+    store.save()
+    log(request, ActionType.ADMIN_CHANGE, "Added store from Add audit", detail=str(store), client=client)
+    return JsonResponse({"id": str(store.pk), "label": store.option_label, "code": store.code}, status=201)
 
 
 @admin_required

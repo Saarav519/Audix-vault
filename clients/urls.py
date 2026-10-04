@@ -14,6 +14,7 @@ urlpatterns = [
     path("clients/<uuid:pk>/edit/", views.client_edit, name="client_edit"),
     path("clients/<uuid:pk>/toggle/", views.client_toggle, name="client_toggle"),
     path("clients/<uuid:pk>/stores/add/", views.store_add, name="store_add"),
+    path("clients/<uuid:pk>/stores/quick-add/", views.store_quick_add, name="store_quick_add"),
     path("clients/<uuid:pk>/categories/add/", views.category_add, name="category_add"),
     path("clients/<uuid:pk>/logins/add/", views.login_add, name="login_add"),
     path("clients/<uuid:pk>/view-as/", views.view_as_start, name="view_as"),
