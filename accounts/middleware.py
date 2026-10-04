@@ -15,6 +15,9 @@ class AccountGuardMiddleware:
 
     def __call__(self, request):
         user = getattr(request, "user", None)
+        if user is not None and not user.is_authenticated and "_auth_user_id" in getattr(request, "session", {}):
+            # The backend refused the stored user (disabled login or disabled client): end the session.
+            request.session.flush()
         if user is not None and user.is_authenticated:
             if not user.is_active or (user.is_client_user and not (user.client_id and user.client.is_active)):
                 logout(request)

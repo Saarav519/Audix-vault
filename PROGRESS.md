@@ -8,6 +8,6 @@ Resume with: *"Read BUILD_ALL.md and PROGRESS.md, then continue from the first u
 - [x] Stage 3: audit entry and publishing (six-step form, live HTMX preview, observations, follow-ups, draft/publish, edit log, soft delete)
 - [x] Stage 4: files and audit detail (S3 + local storage, presign/confirm uploads, GPS strip, thumbnails, 10-minute links, ZIP streaming, detail page)
 - [x] Stage 5: client portal (dashboard with SVG charts and period toggle, all audits with search/filters/show more, tracker, compare, aging report; staff client picker)
-- [ ] Stage 6: admin extras, exports, email, backups
+- [x] Stage 6: admin overview, activity log, Excel/PDF exports with letterhead, branded emails, cron commands, backup/restore commands, waiting for files
 - [ ] Stage 7: import and polish, seed_demo
 - [ ] Stage 8: hardening and delivery

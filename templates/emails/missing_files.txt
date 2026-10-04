@@ -1,0 +1,8 @@
+{% load audix %}Hello team,
+
+{{ total }} audit(s) waiting for files:
+{% for a in waiting %}- {{ a.audit_date|fdate }} {{ a.reference }}{% if a.is_draft %} (draft){% endif %} · {{ a.client.name }} · {{ a.store.code }}: missing {{ a.missing|join:", " }}
+{% endfor %}
+Open the console: {{ link }}
+
+Audix Vault

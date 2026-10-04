@@ -1,0 +1,10 @@
+{% extends "emails/_layout.html" %}{% load audix %}
+{% block body %}
+<p>Hello team,</p>
+<p><strong>{{ total }}</strong> audit{{ total|pluralize }} {{ total|pluralize:"is,are" }} waiting for files.</p>
+<table role="presentation" cellpadding="5" cellspacing="0" style="border-collapse:collapse;font-size:13px;width:100%">
+<tr style="color:#5A6556;text-align:left"><th>Date</th><th>Reference</th><th>Client / store</th><th>Missing</th></tr>
+{% for a in waiting %}<tr style="border-top:1px solid #DADFD2"><td>{{ a.audit_date|fdate }}</td><td>{{ a.reference }}{% if a.is_draft %} (draft){% endif %}</td><td>{{ a.client.name }} · {{ a.store.code }}</td><td>{{ a.missing|join:", " }}</td></tr>{% endfor %}
+</table>
+<p><a href="{{ link }}" style="display:inline-block;background:#B9E10C;color:#12180F;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold">Open the console</a></p>
+{% endblock %}

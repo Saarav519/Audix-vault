@@ -1,0 +1,17 @@
+{% load audix %}Dear {{ client.name }},
+
+Here is your audit summary for {{ month_label }}.
+
+Audits completed: {{ t.audits }}
+Stock value audited: {{ t.stock_value|inr }}
+Shortage: {{ t.shortage|inr }}
+Excess: {{ t.excess|inr }}
+Net variance: {{ t.diff_value|inr }} ({{ t.var_pct|pct }} of stock value)
+Delayed full audits: {{ delayed|length }}
+{% for a in delayed %}- {{ a.store.name }}, {{ a.audit_date|fdate }}: delayed by {{ a.delay_days }} days
+{% endfor %}
+Open your dashboard: {{ link }}
+
+Regards,
+Audix Solutions & Co
+Where Audits Meet Exceptionalism

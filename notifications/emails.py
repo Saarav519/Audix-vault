@@ -47,3 +47,42 @@ def send_new_audit(audit) -> int:
     ctx = {"audit": audit, "client": client, "link": absolute(reverse("accounts:login"))}
     subject = f"New audit: {audit.store.name}, {fmt_date(audit.audit_date)} ({audit.reference})"
     return len(recipients) if send(subject, recipients, "new_audit", ctx) else 0
+
+
+def month_bounds(year: int, month: int):
+    import calendar
+    from datetime import date
+
+    return date(year, month, 1), date(year, month, calendar.monthrange(year, month)[1])
+
+
+def send_monthly_summary(client, year: int, month: int) -> int:
+    """Last month's audits, shortage, excess and delayed audits for one client."""
+    from audits.models import Audit
+    from reports.queries import window_totals
+
+    if not (AppSettings.load().notify_monthly_summary and client.is_active):
+        return 0
+    start, end = month_bounds(year, month)
+    qs = Audit.objects.filter(client=client, status="published", audit_date__gte=start, audit_date__lte=end)
+    totals = window_totals(qs)
+    delayed = list(qs.filter(delay_days__gt=0).select_related("store").order_by("audit_date"))
+    ctx = {"client": client, "start": start, "end": end, "t": totals, "delayed": delayed,
+           "month_label": start.strftime("%B %Y"), "link": absolute(reverse("accounts:login"))}
+    return send(f"Audix Vault monthly summary: {start:%B %Y}", client.email_list(), "monthly_summary", ctx)
+
+
+def send_missing_files_reminder() -> int:
+    """Daily reminder to admins and auditors about audits waiting for files."""
+    from accounts.models import STAFF_ROLES, User
+    from reports.console_views import waiting_for_files
+
+    if not AppSettings.load().notify_missing_files:
+        return 0
+    waiting = waiting_for_files()
+    if not waiting:
+        return 0
+    to = list(User.objects.filter(role__in=list(STAFF_ROLES), is_active=True).exclude(email="")
+              .values_list("email", flat=True))
+    ctx = {"waiting": waiting[:50], "total": len(waiting), "link": absolute(reverse("console:overview"))}
+    return send(f"Audix Vault: {len(waiting)} audit(s) waiting for files", to, "missing_files", ctx)

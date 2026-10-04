@@ -1,3 +1,25 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load audix %}
 {% block title %}Overview{% endblock %}
-{% block content %}<div class="page-head"><h1>Overview</h1></div>{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Overview</h1><p>Clients, audits and files at a glance.</p></div>
+<div class="row"><a class="btn btn-primary" href="{% url 'audits:new' %}">{% icon "plus" %} Add audit</a>{% if user.is_admin %}<a class="btn" href="{% url 'console:client_create' %}">Create client</a>{% endif %}</div></div>
+<section class="kpis" aria-label="Key figures">{% for label, value in kpis %}<div class="kpi"><div class="label">{{ label }}</div><div class="value">{{ value }}</div></div>{% endfor %}</section>
+<div class="grid grid-hero" style="margin-top:16px">
+<section class="card" aria-labelledby="cl-h">
+  <div class="card-head"><h2 id="cl-h">Clients</h2>{% if user.is_admin %}<a class="btn btn-sm" href="{% url 'console:clients' %}">All clients</a>{% endif %}</div>
+  <div class="table-wrap"><table class="table"><thead><tr><th>Client</th><th>Last audit</th><th class="num">Audits (90 days)</th><th class="num">Files complete</th><th class="num">Drafts</th></tr></thead>
+  <tbody>{% for c in clients %}<tr><td>{% if user.is_admin %}<a href="{% url 'console:client_detail' c.pk %}">{{ c.name }}</a>{% else %}{{ c.name }}{% endif %}{% if not c.is_active %} <span class="tag">Disabled</span>{% endif %}</td><td>{{ c.last_audit|fdate|default:"No audit yet" }}</td><td class="num">{{ c.recent }}</td><td class="num">{% if c.completeness is not None %}{{ c.completeness }}%{% else %}—{% endif %}</td><td class="num">{{ c.drafts }}</td></tr>
+  {% empty %}<tr><td colspan="5" class="empty">No clients yet.</td></tr>{% endfor %}</tbody></table></div>
+</section>
+<section class="card" aria-labelledby="act-h">
+  <div class="card-head"><h2 id="act-h">Recent activity</h2>{% if user.is_admin %}<a class="btn btn-sm" href="{% url 'console:activity' %}">Activity log</a>{% endif %}</div>
+  <ul class="insights">{% for e in activity %}<li><span class="small">{{ e.created_at|fdate }} {{ e.created_at|time:"H:i" }}</span><br><strong>{{ e.user_label|default:"System" }}</strong> {{ e.action|lower }}{% if e.audit %} · {{ e.audit.reference }}{% endif %}</li>{% empty %}<li class="muted">Nothing yet.</li>{% endfor %}</ul>
+</section>
+</div>
+<section class="card" style="margin-top:16px" aria-labelledby="wf-h">
+  <div class="card-head"><h2 id="wf-h">Waiting for files</h2><span class="muted small">{{ waiting_total }} audit{{ waiting_total|pluralize }} in the last 180 days</span></div>
+  <div class="table-wrap"><table class="table"><thead><tr><th>Date</th><th>Reference</th><th>Client</th><th>Store</th><th>Status</th><th>Missing</th><th></th></tr></thead>
+  <tbody>{% for a in waiting %}<tr><td class="nowrap">{{ a.audit_date|fdate }}</td><td><a href="{% url 'audits:detail' a.pk %}" data-drawer>{{ a.reference }}</a></td><td>{{ a.client.name }}</td><td>{{ a.store.code }} · {{ a.store.name }}</td><td>{% if a.is_draft %}{% status_pill "Draft" "neutral" %}{% else %}{% status_pill "Published" "good" %}{% endif %}</td><td class="small">{{ a.missing|join:", " }}</td><td>{% if a.is_draft or user.is_admin %}<a class="btn btn-sm" href="{% url 'audits:edit' a.pk %}#h-files">Add files</a>{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="7" class="empty">Every recent audit has its files.</td></tr>{% endfor %}</tbody></table></div>
+</section>
+{% endblock %}
