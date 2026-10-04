@@ -42,10 +42,10 @@
   <div class="table-wrap"><table class="table">
   <thead><tr><th>Audit date</th><th>Store ID</th><th>Location</th><th class="num">Stock value</th><th class="num">Sale value</th><th class="num">Difference value</th><th class="num">Shortage %</th><th class="num">Aging</th><th>Delay</th><th>Remarks</th></tr></thead>
   <tbody>{% for r in report.register %}<tr class="clickable" data-href="{% url 'audits:detail' r.audit.pk %}">
-    <td class="nowrap"><a href="{% url 'audits:detail' r.audit.pk %}" data-drawer>{{ r.audit.audit_date|fdate }}</a></td><td>{{ r.audit.store.code }}</td><td>{{ r.audit.store.name }}, {{ r.audit.store.city }}</td>
+    <td class="nowrap"><a href="{% url 'audits:detail' r.audit.pk %}" data-drawer>{{ r.audit.audit_date|fdate }}</a></td><td>{{ r.audit.store.code }}</td><td class="loc-col">{{ r.audit.store.name }}, {{ r.audit.store.city }}</td>
     <td class="num">{{ r.audit.stock_value|inr }}</td><td class="num">{% if r.audit.sale_value %}{{ r.audit.sale_value|inr }}{% else %}Not given{% endif %}</td>
     <td class="num {{ r.audit.diff_value|money_class }}">{{ r.audit.diff_value|inr }}</td><td class="num">{{ r.pct|pct }}<span class="sub">{{ r.pct_base }}</span></td>
-    <td class="num">{{ r.aging }}</td><td class="{% if r.audit.delay_days %}tone-bad{% endif %}">{{ r.delay }}</td><td class="small">{{ r.remark }}</td>
+    <td class="num">{{ r.aging }}</td><td class="nowrap {% if r.audit.delay_days %}tone-bad{% endif %}">{{ r.delay }}</td><td class="small remark-col">{{ r.remark }}</td>
   </tr>{% empty %}<tr><td colspan="10" class="empty">No full audits in this period.</td></tr>{% endfor %}</tbody>
   {% if report.register %}<tfoot><tr><td colspan="3">Total</td><td class="num">{{ report.footer.stock|inr }}</td><td class="num">{% if report.footer.sale is not None %}{{ report.footer.sale|inr }}{% else %}Not given{% endif %}</td><td class="num {{ report.footer.diff|money_class }}">{{ report.footer.diff|inr }}</td><td class="num">{{ report.footer.pct|pct }}<span class="sub">{{ report.footer.pct_base }}</span></td><td class="num">{% if report.footer.avg_aging is not None %}Avg {{ report.footer.avg_aging }} days{% else %}—{% endif %}</td><td>{{ report.footer.late }} late</td><td></td></tr></tfoot>{% endif %}
   </table></div>

@@ -9,5 +9,5 @@ Resume with: *"Read BUILD_ALL.md and PROGRESS.md, then continue from the first u
 - [x] Stage 4: files and audit detail (S3 + local storage, presign/confirm uploads, GPS strip, thumbnails, 10-minute links, ZIP streaming, detail page)
 - [x] Stage 5: client portal (dashboard with SVG charts and period toggle, all audits with search/filters/show more, tracker, compare, aging report; staff client picker)
 - [x] Stage 6: admin overview, activity log, Excel/PDF exports with letterhead, branded emails, cron commands, backup/restore commands, waiting for files
-- [ ] Stage 7: import and polish, seed_demo
+- [x] Stage 7: old-data import (template, dry run, row errors), paste from Excel, seed_demo, responsive and dark-mode pass checked with headless Chromium
 - [ ] Stage 8: hardening and delivery

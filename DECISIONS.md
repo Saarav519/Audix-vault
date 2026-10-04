@@ -30,3 +30,6 @@ One line each: what, and why.
 - "Waiting for files" means a live audit from the last 180 days without a signoff copy, photographs, the audit Excel or the variance report (scanned data is optional).
 - Stores above the Watch threshold on the Overview are judged on each store's latest published audit.
 - Backups go to a separate bucket (`BACKUP_S3_*`): `backup_database` (pg_dump, gzip, `db/`), `sync_bucket_backup` (`files/`), `restore_database --yes`.
+- Import: rows are grouped into audits by client, store code, date, type and shift; a dry run is the default; the real import needs the same file uploaded again with the dry run unticked (nothing is kept on the server between the two). Any error blocks the whole import.
+- seed_demo uses a fixed random seed (2026) so the demo looks the same on every deploy; GR04 and GR08 are made overdue on purpose; about 8% of recent audits are left without files so "Waiting for files" has content. Demo clients do not get publish emails.
+- Editable observation templates: the model and lookup exist (`ObservationTemplate`); there is no admin screen for them yet (first item on the cut list).

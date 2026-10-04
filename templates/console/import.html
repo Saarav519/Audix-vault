@@ -1,0 +1,24 @@
+{% extends "base.html" %}{% load audix %}
+{% block title %}Import old data{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Import old data</h1><p>Bring in past audits from Excel or CSV. One row per audit per category.</p></div>
+<a class="btn" href="{% url 'console:import_template' %}">{% icon "download" %} Download the template</a></div>
+<form method="post" enctype="multipart/form-data" class="card" style="max-width:640px">{% csrf_token %}
+  <div class="field"><label for="imp-file">File (.xlsx or .csv)</label><input id="imp-file" type="file" name="file" accept=".xlsx,.csv" required></div>
+  <div class="field"><label class="check"><input type="checkbox" name="dry_run" value="1" {% if dry_run %}checked{% endif %}> <span>Dry run: check the file and report errors without saving anything</span></label></div>
+  <button class="btn btn-primary" type="submit">Check file</button>
+  <p class="muted small" style="margin-top:10px">Imported audits are published, marked as imported, get the observation “No observation recorded”, and are linked to earlier audits by date. Run a dry run first, then upload the same file again with the dry run unticked.</p>
+</form>
+{% if result %}
+<section class="card">
+  <h2>Result {% if dry_run %}(dry run, nothing saved){% endif %}</h2>
+  <p>{{ result.rows }} row{{ result.rows|pluralize }} read · {{ result.audits|length }} audit{{ result.audits|length|pluralize }} ready · {{ result.errors|length }} error{{ result.errors|length|pluralize }}</p>
+  {% if result.errors %}
+  <div class="table-wrap"><table class="table"><thead><tr><th class="num">Row</th><th>Problem</th></tr></thead><tbody>{% for n, msg in result.errors|slice:":300" %}<tr><td class="num">{{ n }}</td><td>{{ msg }}</td></tr>{% endfor %}</tbody></table></div>
+  {% elif result.audits %}
+  <p class="notice">The file looks good. Untick “Dry run” and upload it again to import.</p>
+  <div class="table-wrap"><table class="table"><thead><tr><th>Client</th><th>Store</th><th>Date</th><th>Type</th><th class="num">Categories</th></tr></thead><tbody>{% for g in result.audits|slice:":100" %}<tr><td>{{ g.client.name }}</td><td>{{ g.store.code }}</td><td>{{ g.date|fdate }}</td><td>{{ g.type }}</td><td class="num">{{ g.lines|length }}</td></tr>{% endfor %}</tbody></table></div>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

@@ -506,6 +506,10 @@ class Obs:
     def category_label(self):
         return self.category or "Whole store"
 
+    @property
+    def kind_label(self):
+        return KIND_LABELS.get(self.kind, self.kind)
+
 
 @dataclass
 class AuditData:

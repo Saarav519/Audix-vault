@@ -44,7 +44,7 @@
 {% if cmp.followups %}
 <section class="card"><h2>Follow-up on A's recommendations</h2><p class="card-sub">Status worked out from B's numbers.</p>
 <div class="table-wrap"><table class="table"><thead><tr><th>Category</th><th>Kind</th><th>Recommendation</th><th>Status</th></tr></thead>
-<tbody>{% for f in cmp.followups %}<tr><td>{{ f.observation.category_label }}</td><td>{{ f.observation.kind|title }}</td><td>{{ f.observation.recommendation }}</td><td>{% status_pill f.status f.tone %}</td></tr>{% endfor %}</tbody></table></div></section>
+<tbody>{% for f in cmp.followups %}<tr><td>{{ f.observation.category_label }}</td><td>{{ f.observation.kind_label }}</td><td>{{ f.observation.recommendation }}</td><td>{% status_pill f.status f.tone %}</td></tr>{% endfor %}</tbody></table></div></section>
 {% endif %}
 <section class="card"><h2>Improvement points for B</h2>
 {% if cmp.improvements %}<ol>{% for p in cmp.improvements %}<li style="margin-bottom:6px">{{ p }}</li>{% endfor %}</ol>{% else %}<p class="muted">Nothing to add. Keep the current routine.</p>{% endif %}</section>
