@@ -1,0 +1,56 @@
+{% extends "base.html" %}{% load audix %}
+{% block title %}Compare audits{% endblock %}
+{% block content %}
+{% include "portal/partials/client_picker.html" %}
+<div class="page-head">
+  <div><h1>Compare audits</h1><p>Audit A is the base, audit B is compared with it. Value and percentage everywhere.</p></div>
+  {% if cmp %}<a class="btn" href="{% url 'portal:compare_pdf' %}?a={{ a.pk }}&b={{ b.pk }}{% if cq %}&{{ cq }}{% endif %}">{% icon "download" %} Export PDF</a>{% endif %}
+</div>
+<section class="card">
+<form method="get" class="grid grid-2">
+  {% if cq %}<input type="hidden" name="client" value="{{ client.pk }}">{% endif %}
+  <fieldset style="border:0;padding:0;margin:0"><legend class="small" style="font-weight:700">Audit A (base)</legend>
+    <div class="form-grid">
+    <div class="field"><label for="a-store">Store</label><select id="a-store" name="a_store" data-compare-store="a">{% for s in stores %}<option value="{{ s.pk }}" {% if a and a.store_id == s.pk %}selected{% endif %}>{{ s.code }} · {{ s.name }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="a-audit">Audit date</label><select id="a-audit" name="a">{% for o in a_options %}<option value="{{ o.pk }}" {% if a and a.pk == o.pk %}selected{% endif %}>{{ o.audit_date|fdate }} · {{ o.get_audit_type_display }}</option>{% empty %}<option value="">No audits</option>{% endfor %}</select></div>
+    </div></fieldset>
+  <fieldset style="border:0;padding:0;margin:0"><legend class="small" style="font-weight:700">Audit B (compare)</legend>
+    <div class="form-grid">
+    <div class="field"><label for="b-store">Store</label><select id="b-store" name="b_store" data-compare-store="b">{% for s in stores %}<option value="{{ s.pk }}" {% if b and b.store_id == s.pk %}selected{% endif %}>{{ s.code }} · {{ s.name }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="b-audit">Audit date</label><select id="b-audit" name="b">{% for o in b_options %}<option value="{{ o.pk }}" {% if b and b.pk == o.pk %}selected{% endif %}>{{ o.audit_date|fdate }} · {{ o.get_audit_type_display }}</option>{% empty %}<option value="">No audits</option>{% endfor %}</select></div>
+    </div></fieldset>
+  <div><button class="btn btn-primary" type="submit">Compare</button></div>
+</form>
+{% if quick %}<div style="margin-top:12px"><span class="muted small">Quick pick, previous vs latest:</span>
+<div class="row" style="margin-top:6px">{% for q in quick %}<a class="btn btn-sm" href="?a={{ q.a }}&b={{ q.b }}{% if cq %}&{{ cq }}{% endif %}" {% if b and b.pk == q.b and a.pk == q.a %}aria-current="true" style="border-color:var(--lime-ink)"{% endif %}>{{ q.store.code }} · {{ q.store.name }}</a>{% endfor %}</div></div>{% endif %}
+</section>
+
+{% if cmp %}
+<section class="card">
+  <div class="grid grid-2">
+    <div><span class="tag">A</span> <strong>{{ a.store.name }}, {{ a.store.city }}</strong><div class="small muted">{{ a.audit_date|fdate }} · {{ a.get_audit_type_display }} · <a href="{% url 'audits:detail' a.pk %}" data-drawer>{{ a.reference }}</a></div></div>
+    <div><span class="tag">B</span> <strong>{{ b.store.name }}, {{ b.store.city }}</strong><div class="small muted">{{ b.audit_date|fdate }} · {{ b.get_audit_type_display }} · <a href="{% url 'audits:detail' b.pk %}" data-drawer>{{ b.reference }}</a></div></div>
+  </div>
+  <h2 style="margin-top:14px">Summary</h2>
+  {% include "partials/comparison.html" with a_label="A" b_label="B" %}
+</section>
+{% if cmp.categories %}
+<section class="card"><h2>Variance % by category</h2><p class="card-sub">A is lighter, B is solid. Left of the line is shortage, right is excess.</p>{{ chart }}</section>
+{% endif %}
+<div class="grid grid-2">
+  <section class="card"><h2>Observations in A</h2>{% for o in a_obs %}<div class="obs-card"><strong>{{ o.category_label }}</strong> <span class="tag">{{ o.get_kind_display }}</span><p style="margin:6px 0">{{ o.text }}</p>{% if o.recommendation %}<p class="small" style="margin:0"><strong>Recommendation:</strong> {{ o.recommendation }}</p>{% endif %}</div>{% empty %}<p class="muted">No observation recorded.</p>{% endfor %}</section>
+  <section class="card"><h2>Observations in B</h2>{% for o in b_obs %}<div class="obs-card"><strong>{{ o.category_label }}</strong> <span class="tag">{{ o.get_kind_display }}</span><p style="margin:6px 0">{{ o.text }}</p>{% if o.recommendation %}<p class="small" style="margin:0"><strong>Recommendation:</strong> {{ o.recommendation }}</p>{% endif %}</div>{% empty %}<p class="muted">No observation recorded.</p>{% endfor %}</section>
+</div>
+{% if cmp.followups %}
+<section class="card"><h2>Follow-up on A's recommendations</h2><p class="card-sub">Status worked out from B's numbers.</p>
+<div class="table-wrap"><table class="table"><thead><tr><th>Category</th><th>Kind</th><th>Recommendation</th><th>Status</th></tr></thead>
+<tbody>{% for f in cmp.followups %}<tr><td>{{ f.observation.category_label }}</td><td>{{ f.observation.kind|title }}</td><td>{{ f.observation.recommendation }}</td><td>{% status_pill f.status f.tone %}</td></tr>{% endfor %}</tbody></table></div></section>
+{% endif %}
+<section class="card"><h2>Improvement points for B</h2>
+{% if cmp.improvements %}<ol>{% for p in cmp.improvements %}<li style="margin-bottom:6px">{{ p }}</li>{% endfor %}</ol>{% else %}<p class="muted">Nothing to add. Keep the current routine.</p>{% endif %}</section>
+{% elif a and b and a.pk == b.pk %}
+<p class="notice">Choose two different audits to compare.</p>
+{% else %}
+<p class="notice">Choose two audits to compare. A store needs at least two published audits for a previous vs latest comparison.</p>
+{% endif %}
+{% endblock %}

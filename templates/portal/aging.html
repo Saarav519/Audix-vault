@@ -1,0 +1,53 @@
+{% extends "base.html" %}{% load audix %}
+{% block title %}Audit aging report{% endblock %}
+{% block content %}
+{% include "portal/partials/client_picker.html" %}
+<div class="page-head">
+  <div><h1>Yearly audit aging report</h1><p>{{ client.name }} · {{ period.label }} ({{ period.start|fdate }} to {{ period.end|fdate }}) · full audits only, {{ client.cycle_days }}-day cycle</p></div>
+  <div class="row">
+    <a class="btn" href="{% url 'portal:aging_export' 'xlsx' %}?{{ request.GET.urlencode }}{% if cq and 'client=' not in request.GET.urlencode %}&{{ cq }}{% endif %}">{% icon "download" %} Export Excel</a>
+    <a class="btn" href="{% url 'portal:aging_export' 'pdf' %}?{{ request.GET.urlencode }}{% if cq and 'client=' not in request.GET.urlencode %}&{{ cq }}{% endif %}">{% icon "download" %} Export PDF</a>
+  </div>
+</div>
+<form method="get" class="filters card" style="margin-bottom:16px">
+  {% if cq %}<input type="hidden" name="client" value="{{ client.pk }}">{% endif %}
+  <div class="field"><label for="ag-period">Period</label><select id="ag-period" name="period" data-autosubmit>{% for p in period_choices %}<option value="{{ p.key }}" {% if p == period %}selected{% endif %}>{{ p.label }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="ag-store">Store</label><select id="ag-store" name="store" data-autosubmit><option value="">All stores</option>{% for s in stores %}<option value="{{ s.pk }}" {% if store and store.pk == s.pk %}selected{% endif %}>{{ s.code }} · {{ s.name }}</option>{% endfor %}</select></div>
+  <noscript><button class="btn" type="submit">Show</button></noscript>
+</form>
+{% with k=report.kpis %}
+<section class="kpis" aria-label="Key figures">
+  <div class="kpi"><div class="label">Full audits</div><div class="value">{{ k.full_audits }}</div></div>
+  <div class="kpi"><div class="label">Stores audited</div><div class="value">{{ k.stores_audited }} of {{ k.stores_total }}</div></div>
+  <div class="kpi"><div class="label">Average aging</div><div class="value">{% if k.avg_aging is not None %}{{ k.avg_aging }} days{% else %}—{% endif %}</div><div class="sub">Days between full audits</div></div>
+  <div class="kpi"><div class="label">Done on time</div><div class="value">{% if k.on_time_pct is not None %}{{ k.on_time_pct|pct:0 }}{% else %}—{% endif %}</div><div class="sub">{{ k.on_time }} audit{{ k.on_time|pluralize }}</div></div>
+  <div class="kpi"><div class="label">Delayed audits</div><div class="value {% if k.delayed %}tone-bad{% endif %}">{{ k.delayed }}</div><div class="sub">{% if k.longest_delay %}Longest delay {{ k.longest_delay }} days{% else %}No delays{% endif %}</div></div>
+  <div class="kpi"><div class="label">Net difference</div><div class="value {{ k.net_diff|money_class }}">{{ k.net_diff|cinr }}</div><div class="sub">{{ k.net_pct|pct }} {{ k.net_base }}</div></div>
+</section>
+{% endwith %}
+
+<section class="card" style="margin-top:16px" aria-labelledby="q-h">
+  <h2 id="q-h">Quarter-wise audit calendar</h2>
+  <div class="table-wrap"><table class="table">
+  <thead><tr><th>Store</th>{% for q in report.quarters %}<th>{{ q.name }}<span class="sub">{{ q.months }}</span></th>{% endfor %}<th>Next full audit due</th></tr></thead>
+  <tbody>{% for row in report.calendar %}<tr>
+    <td>{{ row.store.name }}<span class="sub">{{ row.store.code }} · {{ row.store.city }}</span></td>
+    {% for c in row.cells %}<td><div class="qcell">{% for it in c.items %}<a href="{% url 'audits:detail' it.audit.pk %}" data-drawer class="small">{{ it.audit.audit_date|fdate }}</a>{% status_pill it.chip it.tone %}{% empty %}<span class="muted small">{{ c.empty }}</span>{% endfor %}</div></td>{% endfor %}
+    <td>{{ row.due.next_due|fdate|default:"—" }}<div>{% status_pill row.due.label row.due.tone %}</div></td>
+  </tr>{% empty %}<tr><td colspan="6" class="empty">No stores.</td></tr>{% endfor %}</tbody></table></div>
+</section>
+
+<section class="card" style="margin-top:16px" aria-labelledby="r-h">
+  <div class="card-head"><h2 id="r-h">Audit register</h2><span class="muted small">One row per full audit, by store then date</span></div>
+  <div class="table-wrap"><table class="table">
+  <thead><tr><th>Audit date</th><th>Store ID</th><th>Location</th><th class="num">Stock value</th><th class="num">Sale value</th><th class="num">Difference value</th><th class="num">Shortage %</th><th class="num">Aging</th><th>Delay</th><th>Remarks</th></tr></thead>
+  <tbody>{% for r in report.register %}<tr class="clickable" data-href="{% url 'audits:detail' r.audit.pk %}">
+    <td class="nowrap"><a href="{% url 'audits:detail' r.audit.pk %}" data-drawer>{{ r.audit.audit_date|fdate }}</a></td><td>{{ r.audit.store.code }}</td><td>{{ r.audit.store.name }}, {{ r.audit.store.city }}</td>
+    <td class="num">{{ r.audit.stock_value|inr }}</td><td class="num">{% if r.audit.sale_value %}{{ r.audit.sale_value|inr }}{% else %}Not given{% endif %}</td>
+    <td class="num {{ r.audit.diff_value|money_class }}">{{ r.audit.diff_value|inr }}</td><td class="num">{{ r.pct|pct }}<span class="sub">{{ r.pct_base }}</span></td>
+    <td class="num">{{ r.aging }}</td><td class="{% if r.audit.delay_days %}tone-bad{% endif %}">{{ r.delay }}</td><td class="small">{{ r.remark }}</td>
+  </tr>{% empty %}<tr><td colspan="10" class="empty">No full audits in this period.</td></tr>{% endfor %}</tbody>
+  {% if report.register %}<tfoot><tr><td colspan="3">Total</td><td class="num">{{ report.footer.stock|inr }}</td><td class="num">{% if report.footer.sale is not None %}{{ report.footer.sale|inr }}{% else %}Not given{% endif %}</td><td class="num {{ report.footer.diff|money_class }}">{{ report.footer.diff|inr }}</td><td class="num">{{ report.footer.pct|pct }}<span class="sub">{{ report.footer.pct_base }}</span></td><td class="num">{% if report.footer.avg_aging is not None %}Avg {{ report.footer.avg_aging }} days{% else %}—{% endif %}</td><td>{{ report.footer.late }} late</td><td></td></tr></tfoot>{% endif %}
+  </table></div>
+</section>
+{% endblock %}

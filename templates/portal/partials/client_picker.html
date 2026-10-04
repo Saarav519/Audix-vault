@@ -1,0 +1,8 @@
+{% if picker_clients %}
+<form method="get" class="filters no-print" style="margin-bottom:14px">
+  {% for k, v in request.GET.items %}{% if k != "client" and k != "a" and k != "b" and k != "store" and k != "a_store" and k != "b_store" and k != "page" %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endif %}{% endfor %}
+  <div class="field" style="max-width:360px"><label for="pick-client">Client</label>
+  <select id="pick-client" name="client" data-autosubmit>{% for c in picker_clients %}<option value="{{ c.pk }}" {% if c.pk == client.pk %}selected{% endif %}>{{ c.name }}{% if not c.is_active %} (disabled){% endif %}</option>{% endfor %}</select></div>
+  <noscript><button class="btn" type="submit">Show</button></noscript>
+</form>
+{% endif %}

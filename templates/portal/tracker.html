@@ -1,0 +1,47 @@
+{% extends "base.html" %}{% load audix %}
+{% block title %}Audit tracker{% endblock %}
+{% block content %}
+{% include "portal/partials/client_picker.html" %}
+<div class="page-head"><div><h1>Audit tracker</h1><p>When each store was audited, and when the next full audit is due.</p></div></div>
+<div class="grid grid-hero">
+<section class="card" aria-labelledby="cal-h">
+  <div class="card-head"><h2 id="cal-h">{{ month_label }}</h2>
+  <div class="row"><a class="btn btn-sm" href="?month={{ prev_month }}{% if cq %}&{{ cq }}{% endif %}" aria-label="Previous month">‹ Previous</a><a class="btn btn-sm" href="?{{ cq }}">This month</a><a class="btn btn-sm" href="?month={{ next_month }}{% if cq %}&{{ cq }}{% endif %}" aria-label="Next month">Next ›</a></div></div>
+  <div class="cal" data-cal role="grid" aria-label="Audit calendar">
+    {% for d in "MTWTFSS" %}<div class="dow" aria-hidden="true">{{ d }}</div>{% endfor %}
+    {% for d in days %}
+    <button type="button" class="day {% if not d.in_month %}out{% endif %} {% if d.date == today %}today{% endif %}" data-cal-day="{{ d.key }}" aria-pressed="{% if d.key == selected %}true{% else %}false{% endif %}" aria-label="{{ d.date|fdate }}: {{ d.audits|length }} audit{{ d.audits|length|pluralize }}">
+      <span class="d">{{ d.date.day }}</span>
+      <span class="dots">{% for a in d.audits|slice:":6" %}<span class="dot {{ a.status_tone }}"></span>{% endfor %}</span>
+    </button>
+    {% endfor %}
+  </div>
+  <div class="legend" style="margin-top:8px"><span><i style="background:var(--good)"></i>Healthy</span><span><i style="background:var(--warn)"></i>Watch</span><span><i style="background:var(--bad)"></i>Review</span></div>
+</section>
+<section class="card" aria-labelledby="day-h" aria-live="polite">
+  <h2 id="day-h">Audits on the selected day</h2>
+  {% for d in days %}
+  <div data-cal-list="{{ d.key }}" {% if d.key != selected %}hidden{% endif %}>
+    <p class="muted small">{{ d.date|fdate }}</p>
+    {% for a in d.audits %}<div class="obs-card"><div class="row between"><a href="{% url 'audits:detail' a.pk %}" data-drawer><strong>{{ a.store.name }}</strong></a>{% status_pill a.status_label %}</div><div class="small muted">{{ a.get_audit_type_display }} · {{ a.get_shift_display }} · {{ a.reference }}</div><div class="small"><span class="{{ a.diff_value|money_class }}">{{ a.diff_value|inr }}</span> ({{ a.var_pct_stock|pct }} of stock value)</div></div>
+    {% empty %}<p class="muted">No audits on this day.</p>{% endfor %}
+  </div>
+  {% endfor %}
+</section>
+</div>
+
+<section class="card" style="margin-top:16px" aria-labelledby="tl-h">
+  <div class="card-head"><h2 id="tl-h">Last 90 days</h2><span class="legend"><span><i style="border-radius:2px;background:var(--muted)"></i>Square: full audit</span><span><i style="border-radius:50%;background:var(--muted)"></i>Round: other audit</span></span></div>
+  <div class="timeline-row" aria-hidden="true"><span></span><div style="position:relative;height:16px">{% for t in ticks %}<span class="small muted" style="position:absolute;left:{{ t.left }}%;transform:translateX(-50%)">{{ t.label }}</span>{% endfor %}</div></div>
+  {% for row in timeline %}
+  <div class="timeline-row"><span class="small"><strong>{{ row.store.code }}</strong> {{ row.store.name }}</span>
+    <div class="timeline-track">{% for d in row.dots %}<a class="{{ d.tone }} {% if d.audit.is_full %}full{% endif %}" style="left:{{ d.left }}%" href="{% url 'audits:detail' d.audit.pk %}" data-drawer data-tip="{{ d.audit.audit_date|fdate }} · {{ d.audit.get_audit_type_display }} · {{ d.audit.var_pct_stock|pct }} ({{ d.audit.status_label }})" aria-label="{{ row.store.name }}, {{ d.audit.audit_date|fdate }}, {{ d.audit.get_audit_type_display }}, {{ d.audit.status_label }}"></a>{% endfor %}</div></div>
+  {% endfor %}
+</section>
+
+<section class="card" style="margin-top:16px" aria-labelledby="due-h">
+  <div class="card-head"><h2 id="due-h">Next full audit due</h2><span class="muted small">Audit cycle {{ client.cycle_days }} days · due soon within {{ client.soon_days }} days</span></div>
+  <div class="table-wrap"><table class="table"><thead><tr><th>Store</th><th>Last full audit</th><th>Next due</th><th>Status</th></tr></thead>
+  <tbody>{% for r in due %}<tr><td>{{ r.store.name }}<span class="sub">{{ r.store.code }} · {{ r.store.city }}</span></td><td>{{ r.due.last_date|fdate|default:"No full audit yet" }}</td><td>{{ r.due.next_due|fdate|default:"—" }}</td><td>{% status_pill r.due.label r.due.tone %}</td></tr>{% endfor %}</tbody></table></div>
+</section>
+{% endblock %}

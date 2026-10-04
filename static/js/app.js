@@ -150,6 +150,16 @@
     if (el && el.form) el.form.submit();
   });
 
+  // ---------- compare page: a new store picks its latest audit
+  document.addEventListener("change", function (e) {
+    var sel = e.target.closest("[data-compare-store]");
+    if (!sel) return;
+    var side = sel.getAttribute("data-compare-store");
+    var audit = document.getElementById(side + "-audit");
+    if (audit) audit.disabled = true;
+    sel.form.submit();
+  });
+
   // ---------- confirm buttons
   document.addEventListener("submit", function (e) {
     var msg = e.target.getAttribute("data-confirm");

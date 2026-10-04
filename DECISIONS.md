@@ -20,3 +20,8 @@ One line each: what, and why.
 - ZIPs are streamed with `ZIP_STORED` (photos and Office files are already compressed) and capped at 500 MB (`MAX_ZIP_BYTES`).
 - Local storage (development only) uses Django-signed upload/download links that expire like presigned URLs and still need a signed-in session.
 - An auditor who presses Publish without permission gets the audit saved as a draft with a message, instead of losing the work.
+- Dashboard shortage/excess split is at audit level (an audit with a net negative difference counts as shortage), matching the audit totals rule.
+- Dashboard default period is Monthly (last 90 days); weekly buckets are 7-day blocks ending today, monthly buckets are calendar months.
+- Staff can open every portal screen with a client picker (`?client=`); clients never see the picker and their client is fixed by their login.
+- "Last audit to latest" in store health uses the store's latest audit in the window and that audit's previous audit in the same series; Better/Worse needs a 0.15-point move, otherwise "About the same".
+- Aging "Net difference" uses the sale base over the audits that have a sale value when any audit in the period has one, otherwise the stock base.

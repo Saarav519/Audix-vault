@@ -1,0 +1,70 @@
+{% extends "base.html" %}{% load audix %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+{% include "portal/partials/client_picker.html" %}
+<div class="page-head">
+  <div><h1>Dashboard</h1><p>{{ client.name }} · {{ window_text|capfirst }} ({{ window.0|fdate }} to {{ window.1|fdate }}), compared with the {{ window_text }} before it.</p></div>
+  <nav class="seg" aria-label="Period">{% for key, label in periods.items %}<a href="?period={{ key }}{% if cq %}&{{ cq }}{% endif %}" {% if key == period %}aria-current="true"{% endif %}>{{ label }}</a>{% endfor %}</nav>
+</div>
+
+<div class="grid grid-hero">
+<section class="card" aria-labelledby="hero-h">
+  <h2 id="hero-h" class="sr-only">Net variance</h2>
+  <div class="row between" style="align-items:flex-start">
+    <div>
+      <div class="muted small">Net variance ({{ window_text }})</div>
+      <div class="big-num {{ cur.diff_value|money_class }}">{{ cur.diff_value|inr }}</div>
+      <div class="small">{{ cur.var_pct|pct }} of stock value audited ({{ cur.stock_value|cinr }}){% if cur.var_pct_sale is not None %} · {{ cur.var_pct_sale|pct }} of sale value{% endif %}</div>
+    </div>
+    <div class="row" style="gap:18px">
+      <div><div class="muted small">Shortage</div><div class="shortage" style="font-weight:700">{{ cur.shortage|inr }}</div><div class="small muted">{{ cur.shortage_qty|absval|qty }} units</div><div class="small tone-{{ shortage_change.tone }}">{{ shortage_change.text }}</div></div>
+      <div><div class="muted small">Excess</div><div class="excess" style="font-weight:700">{{ cur.excess|inr }}</div><div class="small muted">{{ cur.excess_qty|qty }} units</div></div>
+    </div>
+  </div>
+  <div style="margin-top:12px">{{ chart }}</div>
+  <div class="legend"><span><i style="background:var(--shortage)"></i>Shortage (below the line)</span><span><i style="background:var(--excess)"></i>Excess (above the line)</span></div>
+</section>
+<section class="card" aria-labelledby="ins-h">
+  <h2 id="ins-h">What stands out</h2>
+  <ul class="insights">{% for i in insights %}<li class="{{ i.tone }}">{{ i.text }}{% if i.link == "aging" %} <a href="{% url 'portal:aging' %}{% if cq %}?{{ cq }}{% endif %}">See the aging report</a>{% endif %}</li>{% endfor %}</ul>
+</section>
+</div>
+
+<section class="kpis" style="margin-top:16px" aria-label="Key figures">
+{% for k in kpis %}<div class="kpi"><div class="label">{{ k.label }}</div><div class="value">{{ k.value }}</div>{% if k.sub %}<div class="sub">{{ k.sub }}</div>{% endif %}<div class="sub tone-{{ k.change.tone }}">{{ k.change.text }}</div></div>{% endfor %}
+</section>
+
+<section class="card" style="margin-top:16px" aria-labelledby="sh-h">
+  <div class="card-head"><h2 id="sh-h">Store health</h2><span class="muted small">Worst first · {{ window_text }}</span></div>
+  <div class="table-wrap"><table class="table">
+  <thead><tr><th>Store</th><th class="num">Audits</th><th>Net variance %</th><th class="num">Damage %</th><th class="num">WBC %</th><th>Last audit to latest</th><th>Status</th></tr></thead>
+  <tbody>{% for r in store_rows %}<tr>
+    <td>{{ r.store.name }}<span class="sub">{{ r.store.code }} · {{ r.store.city }}</span></td>
+    {% if r.audits %}
+    <td class="num">{{ r.audits }}</td>
+    <td class="nowrap num"><span class="{{ r.health.diff_value|money_class }}">{{ r.var_pct|pct }}</span><span class="bar {% if r.health.diff_value > 0 %}excess{% endif %}" style="width:{{ r.bar }}px"></span></td>
+    <td class="num">{{ r.damage_pct|pct }}</td><td class="num">{{ r.wbc_pct|pct }}</td>
+    <td class="nowrap">{% if r.prev %}{{ r.prev.var_pct_stock|pct }} → {{ r.latest.var_pct_stock|pct }} <span class="tag">{{ r.trend }}</span> <a class="btn btn-sm" href="{% url 'portal:compare' %}?a={{ r.prev.pk }}&b={{ r.latest.pk }}{% if cq %}&{{ cq }}{% endif %}">Compare</a>{% else %}<span class="muted small">First audit</span>{% endif %}</td>
+    <td>{% status_pill r.status %}</td>
+    {% else %}
+    <td class="num">0</td><td colspan="4" class="muted">No audit</td><td>{% status_pill "No audit" "neutral" %}</td>
+    {% endif %}
+  </tr>{% empty %}<tr><td colspan="7" class="empty">No stores yet.</td></tr>{% endfor %}</tbody></table></div>
+</section>
+
+<div class="grid grid-2" style="margin-top:16px">
+<section class="card" aria-labelledby="cat-h">
+  <div class="card-head"><h2 id="cat-h">Where the variance comes from</h2><span class="muted small">By category, worst first</span></div>
+  <div class="table-wrap"><table class="table"><thead><tr><th>Category</th><th class="num">Net difference</th><th class="num">% of its stock value</th></tr></thead>
+  <tbody>{% for c in cats %}<tr><td>{{ c.category }}</td><td class="num nowrap"><span class="{{ c.diff|money_class }}">{{ c.diff|inr }}</span><span class="bar {% if c.diff > 0 %}excess{% endif %}" style="width:{{ c.bar }}px"></span></td><td class="num">{{ c.pct|pct }}</td></tr>
+  {% empty %}<tr><td colspan="3" class="empty">No audits in this period.</td></tr>{% endfor %}</tbody></table></div>
+</section>
+<section class="card" aria-labelledby="bk-h">
+  <h2 id="bk-h">Total physical breakup</h2>
+  <p class="card-sub">Total physical value {{ cur.total_value|inr }}</p>
+  <div class="split-bar" role="img" aria-label="Good stock, damage and WBC shares">{% for label, v, p, colour in breakup %}<span style="width:{{ p|floatformat:2 }}%;background:{{ colour }}" title="{{ label }}"></span>{% endfor %}</div>
+  <table class="table" style="margin-top:12px"><tbody>{% for label, v, p, colour in breakup %}<tr><td><span class="dot" style="background:{{ colour }}"></span> {{ label }}</td><td class="num">{{ v|inr }}</td><td class="num">{{ p|pct }}</td></tr>{% endfor %}</tbody></table>
+  <p class="muted small">Damage and WBC are physically present, so they are part of total physical.</p>
+</section>
+</div>
+{% endblock %}

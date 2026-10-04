@@ -1,15 +1,15 @@
 from django.urls import path
 
-from django.http import HttpResponse
-
-def todo(request, *a, **k):
-    return HttpResponse("todo")
+from reports import exports, views
 
 app_name = "portal"
 urlpatterns = [
-    path("dashboard/", todo, name="dashboard"),
-    path("audits/", todo, name="audits"),
-    path("tracker/", todo, name="tracker"),
-    path("aging/", todo, name="aging"),
-    path("compare/", todo, name="compare"),
+    path("dashboard/", views.dashboard, name="dashboard"),
+    path("audits/", views.audits, name="audits"),
+    path("audits/export/<str:fmt>/", exports.audits_export, name="audits_export"),
+    path("tracker/", views.tracker, name="tracker"),
+    path("compare/", views.compare, name="compare"),
+    path("compare/export/pdf/", exports.compare_pdf, name="compare_pdf"),
+    path("aging/", views.aging, name="aging"),
+    path("aging/export/<str:fmt>/", exports.aging_export, name="aging_export"),
 ]

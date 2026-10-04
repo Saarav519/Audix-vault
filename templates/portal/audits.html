@@ -1,0 +1,29 @@
+{% extends "base.html" %}{% load audix %}
+{% block title %}All audits{% endblock %}
+{% block content %}
+{% include "portal/partials/client_picker.html" %}
+<div class="page-head">
+  <div><h1>All audits</h1><p>Every published audit for {{ client.name }}.</p></div>
+  <div class="row">
+    <a class="btn" href="{% url 'portal:audits_export' 'xlsx' %}?{{ request.GET.urlencode }}">{% icon "download" %} Export Excel</a>
+    <a class="btn" href="{% url 'portal:audits_export' 'pdf' %}?{{ request.GET.urlencode }}">{% icon "download" %} Export PDF</a>
+  </div>
+</div>
+<section class="card">
+<form class="filters" method="get" role="search" style="margin-bottom:12px">
+  {% if cq %}<input type="hidden" name="client" value="{{ client.pk }}">{% endif %}
+  <div class="field"><label for="f-q">Search</label><input id="f-q" type="search" name="q" value="{{ f.q }}" placeholder="Store, date, type or reference"></div>
+  <div class="field"><label for="f-store">Store</label><select id="f-store" name="store" data-autosubmit><option value="">All stores</option>{% for s in stores %}<option value="{{ s.pk }}" {% if f.store == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.code }} · {{ s.name }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="f-type">Audit type</label><select id="f-type" name="type" data-autosubmit><option value="">All types</option>{% for v, l in types %}<option value="{{ v }}" {% if f.type == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="f-shift">Shift</label><select id="f-shift" name="shift" data-autosubmit><option value="">All shifts</option>{% for v, l in shifts %}<option value="{{ v }}" {% if f.shift == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="f-period">Period</label><select id="f-period" name="period" data-autosubmit>{% for v, l in periods %}<option value="{{ v }}" {% if f.period == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+  <button class="btn" type="submit">Search</button>
+  {% if f.q or f.store or f.type or f.shift or f.period %}<a class="btn" href="?{{ cq }}">Clear</a>{% endif %}
+</form>
+<p class="small" aria-live="polite"><strong>{{ summary.audits }} audit{{ summary.audits|pluralize }}</strong> · Stock value {{ summary.stock_value|inr }} · Shortage <span class="shortage">{{ summary.shortage|inr }}</span> · Excess <span class="excess">{{ summary.excess|inr }}</span> · Net <span class="{{ summary.diff_value|money_class }}">{{ summary.diff_value|inr }}</span> ({{ summary.var_pct|pct }} of stock value)</p>
+<div class="table-wrap"><table class="table">
+<thead><tr><th>Date</th><th>Store</th><th>Audit type</th><th>Shift</th><th class="num">Stock value</th><th class="num">Total physical</th><th class="num">Difference</th><th class="num">Var %</th><th>Status</th></tr></thead>
+<tbody id="audit-rows">{% include "portal/partials/audit_rows.html" %}</tbody>
+</table></div>
+</section>
+{% endblock %}
