@@ -1,6 +1,6 @@
 # Status
 
-Honest state of the build against the brief. Test suite: 253 tests (`pytest -q`), `ruff check .` clean, `manage.py check --deploy` shows no errors (one warning left on purpose: HSTS include-subdomains is an owner decision for the final domain), `pip-audit` finds no known vulnerabilities.
+Honest state of the build against the brief. Test suite: 252 tests (`pytest -q`), `ruff check .` clean, `manage.py check --deploy` shows no errors (one warning left on purpose: HSTS include-subdomains is an owner decision for the final domain), `pip-audit` finds no known vulnerabilities.
 
 ## Part B
 
