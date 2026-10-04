@@ -9,12 +9,21 @@
       <div class="lk-tag">Where Audits Meet <em>Exceptionalism</em></div>
       <div class="lk-line"></div>
     </div>
+    <ul class="lk-features" aria-label="What you will find in Audix Vault">
+      <li><span class="lk-ico">{% icon "chart" %}</span><div><b>Stock variance at a glance</b><small>Category-wise shortage and excess, store status and trends over time.</small></div></li>
+      <li><span class="lk-ico">{% icon "file" %}</span><div><b>Sign-offs and reports</b><small>Signed sign-off sheets, audit Excel and variance reports for every audit.</small></div></li>
+      <li><span class="lk-ico">{% icon "camera" %}</span><div><b>Evidence photographs</b><small>Photos from the store floor, kept with the audit they belong to.</small></div></li>
+      <li><span class="lk-ico">{% icon "clock" %}</span><div><b>Audit cycle tracking</b><small>Aging report, next audit due and overdue stores.</small></div></li>
+    </ul>
     <div class="assoc"><span>Associated with</span><img src="{% static 'brand/associated-with-ca-india-vkna.png' %}" alt="CA India. Vikas Kshitij &amp; Associates, Chartered Accountants" width="551" height="110"></div>
   </section>
   <section class="login-form">
-    <form method="post" novalidate>
+    <div class="login-glow" aria-hidden="true"></div>
+    <div class="login-x" aria-hidden="true">{% xmark %}</div>
+    <form method="post" novalidate class="login-card">
       {% csrf_token %}
       <div>
+        <span class="login-eyebrow">{% icon "lock" %} Secure client portal</span>
         <h1>Welcome to Audix Vault</h1>
         <p class="hint" style="margin-top:8px">Your audit summaries, sign-offs and evidence photographs, available whenever you need them.</p>
       </div>
@@ -25,6 +34,7 @@
       <input type="hidden" name="next" value="{{ next }}">
       <button class="btn btn-primary" type="submit">Sign in</button>
       <p class="hint">Forgot your password? Contact Audix Solutions &amp; Co and we will issue a new one.</p>
+      <p class="login-foot">{% icon "shield" %} Each client sees only its own audits. Every view and download is logged.</p>
     </form>
   </section>
 </div>

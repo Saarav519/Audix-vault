@@ -1,6 +1,6 @@
 # Status
 
-Honest state of the build against the brief. Test suite: 250 tests (`pytest -q`), `ruff check .` clean, `manage.py check --deploy` shows no errors (one warning left on purpose: HSTS include-subdomains is an owner decision for the final domain), `pip-audit` finds no known vulnerabilities.
+Honest state of the build against the brief. Test suite: 253 tests (`pytest -q`), `ruff check .` clean, `manage.py check --deploy` shows no errors (one warning left on purpose: HSTS include-subdomains is an owner decision for the final domain), `pip-audit` finds no known vulnerabilities.
 
 ## Part B
 
@@ -57,6 +57,7 @@ Honest state of the build against the brief. Test suite: 250 tests (`pytest -q`)
 | Excel upload for the category-wise summary | Done | Template download and upload in Step 2 (`audits/lines_excel.py`, `audits:lines_template`, `audits:lines_upload`); fills the grid in the browser, nothing stored; staff only; logged. |
 | Signoff upload on the audit page, preview frame fix | Done | Upload card for staff on the audit page (shared `static/js/uploads.js`), newest signoff previewed first; missing stored files show a plain message in the frame; framed 404/403 pages have no "Go to home". |
 | Client-wise summary on the admin Overview | Done | Period buttons (today, last 7 days, this month, this quarter, this financial year); per-client audits, stores audited, stock value, shortage, excess, net, Var % and status, overdue stores, dashboard link; totals row. Same totals as the client dashboard (`queries.window_totals`). |
+| Password show/hide and sign-in page refresh | Done | Eye toggle on every password field (`static/js/app.js`), refreshed sign-in page (feature cards, sign-in card); checked at 1440px and 390px. |
 | No comparison for a first audit | Done | Detail page and Add/Edit preview show "First audit for this store." and hide the last-audit columns, comparison and follow-up step. Compare page unchanged. |
 
 ## Known gaps and items for the owner
