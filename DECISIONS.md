@@ -24,7 +24,7 @@ One line each: what, and why.
 - Dashboard default period is Monthly (last 90 days); weekly buckets are 7-day blocks ending today, monthly buckets are calendar months.
 - Staff can open every portal screen with a client picker (`?client=`); clients never see the picker and their client is fixed by their login.
 - "Last audit to latest" in store health uses the store's latest audit in the window and that audit's previous audit in the same series; Better/Worse needs a 0.15-point move, otherwise "About the same".
-- Aging "Net difference" uses the sale base over the audits that have a sale value when any audit in the period has one, otherwise the stock base.
+- Totals keep every percentage on a base the reader can check: the "All audits" difference is shown against stock value; "% of sale value" uses only the audits that have a sale value, and when only some do, the text names its own rupee base and count ("on the 24 of 32 audits that have a sale value"). Computed once in `calc.SaleBasis`.
 - PDFs use DejaVu Sans, bundled in `core/fonts/` (free DejaVu licence) so ₹ and − print on servers without system fonts; `PDF_FONT_PATH` can point at another TTF. Helvetica with "Rs" remains only as a last resort.
 - Excel money cells use an Indian-grouping number format for positive values and plain grouping with a leading minus for negatives (Excel conditional formats cannot do both in one format).
 - "Waiting for files" means a live audit from the last 180 days without a signoff copy, photographs, the audit Excel or the variance report (scanned data is optional).

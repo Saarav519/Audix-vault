@@ -264,8 +264,9 @@ def pdf_table(rows, col_widths=None, header=True, num_cols=(), footer=False):
     if header:
         style += [("FONTNAME", (0, 0), (-1, 0), bold), ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F7F9F3")),
                   ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#5A6556"))]
-    if footer:
-        style += [("FONTNAME", (0, -1), (-1, -1), bold), ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#F7F9F3"))]
+    if footer:  # True or the number of total rows at the bottom
+        n = 1 if footer is True else int(footer)
+        style += [("FONTNAME", (0, -n), (-1, -1), bold), ("BACKGROUND", (0, -n), (-1, -1), colors.HexColor("#F7F9F3"))]
     for c in num_cols:
         style.append(("ALIGN", (c, 0), (c, -1), "RIGHT"))
     t.setStyle(TableStyle(style))

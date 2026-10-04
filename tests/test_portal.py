@@ -100,7 +100,8 @@ def test_no_sale_value_means_no_sale_percent(data, user_a):
     html = h.get(reverse("audits:detail", args=[data["a2"].pk])).content.decode()
     assert "of sale value" not in html
     r = h.get(reverse("portal:aging"))
-    assert r.context["report"].kpis["net_base"] == "of stock value"
+    assert r.context["report"].kpis["net_text"].endswith("of stock value")
+    assert not r.context["report"].kpis["basis"].has_any_sale
     assert all(row["pct_base"] == "of stock value" for row in r.context["report"].register)
 
 
@@ -108,7 +109,7 @@ def test_sale_value_shows_both_bases(client_a, user_a):
     f.make_audit(client_a, audit_date=date(2026, 8, 1), lines=LINES, sale_value=1000000)
     h = http_for(user_a)
     r = h.get(reverse("portal:aging"))
-    assert r.context["report"].kpis["net_base"] == "of sale value"
+    assert "of sale value" in r.context["report"].kpis["net_text"]
     assert "of sale value" in r.content.decode()
 
 

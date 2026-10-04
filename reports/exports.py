@@ -61,7 +61,11 @@ def aging_xlsx(client, rep, period_text) -> bytes:
     sh.add(["Done on time", k["on_time"], k["on_time_pct"]], [None, None, "pct"])
     sh.add(["Delayed audits", k["delayed"]])
     sh.add(["Longest delay (days)", k["longest_delay"]])
-    sh.add(["Net difference", k["net_diff"], k["net_pct"], k["net_base"]], [None, "inr", "pct", None])
+    b = k["basis"]
+    sh.add(["Net difference, all audits", k["net_diff"], b.pct_stock_all, "of stock value"], [None, "inr", "pct", None])
+    if b.has_any_sale:
+        sh.add([f"Net difference, audits with sale value ({b.n_with_sale} of {b.n_total})", b.net_diff_with_sale,
+                b.pct_sale, "of sale value"], [None, "inr", "pct", None])
     sh.row += 1
     sh.header(["Audit date", "Store ID", "Location", "Stock value", "Sale value", "Difference value", "Shortage %",
                "Percentage base", "Aging (days)", "Delay", "Remarks"], [13, 9, 26, 15, 15, 15, 11, 15, 11, 14, 60])
@@ -72,10 +76,13 @@ def aging_xlsx(client, rep, period_text) -> bytes:
                 a.aging_days if a.aging_days is not None else "First audit", r["delay"], r["remark"]],
                ["date", None, None, "inr", "inr" if a.sale_value else None, "inr", "pct", None, None, None, None])
     f = rep.footer
-    sh.add(["Total", "", "", f["stock"], f["sale"] if f["sale"] is not None else "Not given", f["diff"], f["pct"],
-            f["pct_base"], f"Avg {f['avg_aging']}" if f["avg_aging"] is not None else "", f"{f['late']} late", ""],
-           [None, None, None, "inr", "inr" if f["sale"] is not None else None, "inr", "pct", None, None, None, None],
-           bold=True)
+    sh.add([f"All audits ({f['n']})", "", "", f["stock"], "", f["diff"], f["pct_stock"], "of stock value",
+            f"Avg {f['avg_aging']}" if f["avg_aging"] is not None else "", f"{f['late']} late", ""],
+           [None, None, None, "inr", None, "inr", "pct", None, None, None, None], bold=True)
+    if f["sale_rows"]:
+        sh.add([f"Audits with sale value ({f['n_sale']} of {f['n']})", "", "", f["stock_sale"], f["sale"], f["diff_sale"],
+                f["pct_sale"], "of sale value", "", "", ""],
+               [None, None, None, "inr", "inr", "inr", "pct", None, None, None, None], bold=True)
     sh.footer()
 
     ws2 = wb.create_sheet("Quarter calendar")
@@ -111,7 +118,7 @@ def aging_pdf(client, rep, period_text) -> bytes:
              f"{k['avg_aging']} days" if k["avg_aging"] is not None else "-",
              f"{pct(k['on_time_pct'], 0)} ({k['on_time']})" if k["on_time_pct"] is not None else "-",
              f"{k['delayed']}" + (f" (longest {k['longest_delay']} days)" if k["longest_delay"] else ""),
-             f"{inr(k['net_diff'])} ({pct(k['net_pct'])} {k['net_base']})"],
+             f"{inr(k['net_diff'])}, {k['net_text']}"],
         ]))
         s.append(ex.paragraph("Quarter-wise audit calendar", "h2"))
         rows = [["Store"] + [f"{q.name} {q.months}" for q in rep.quarters] + ["Next full audit due"]]
@@ -133,11 +140,15 @@ def aging_pdf(client, rep, period_text) -> bytes:
                          inr(a.sale_value) if a.sale_value else "Not given", inr(a.diff_value),
                          f"{pct(r['pct'])} {r['pct_base']}", r["aging"], r["delay"], r["remark"]])
         f = rep.footer
-        rows.append(["Total", "", "", inr(f["stock"]), inr(f["sale"]) if f["sale"] is not None else "Not given",
-                     inr(f["diff"]), f"{pct(f['pct'])} {f['pct_base']}",
+        rows.append([f"All audits ({f['n']})", "", "", inr(f["stock"]), "", inr(f["diff"]),
+                     f"{pct(f['pct_stock'])} of stock value",
                      f"Avg {f['avg_aging']} days" if f["avg_aging"] is not None else "", f"{f['late']} late", ""])
+        if f["sale_rows"]:
+            rows.append([f"With sale value ({f['n_sale']} of {f['n']})", "", "", inr(f["stock_sale"]), inr(f["sale"]),
+                         inr(f["diff_sale"]), f"{pct(f['pct_sale'])} of sale value", "", "", ""])
         s.append(ex.pdf_table(rows, col_widths=[20 * mm, 13 * mm, 34 * mm, 24 * mm, 24 * mm, 22 * mm, 30 * mm,
-                                                17 * mm, 20 * mm, 65 * mm], num_cols=(3, 4, 5), footer=True))
+                                                17 * mm, 20 * mm, 65 * mm], num_cols=(3, 4, 5),
+                              footer=2 if f["sale_rows"] else 1))
         return s
 
     return ex.build_pdf(story, client.name, "Yearly audit aging report", period_text)

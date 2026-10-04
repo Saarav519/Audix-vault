@@ -38,17 +38,9 @@ def build_aging(client, scope_qs, stores, period: calc.Period, today, store=None
     with_aging = [a for a in audits if a.aging_days is not None]
     on_time = [a for a in with_aging if not a.delay_days]
     delayed = [a for a in with_aging if a.delay_days]
-    total_stock = sum((a.stock_value for a in audits), D(0))
-    total_diff = sum((a.diff_value for a in audits), D(0))
-    sale_audits = [a for a in audits if calc.has_sale(a.sale_value)]
-    total_sale = sum((a.sale_value for a in sale_audits), D(0))
-    sale_basis = bool(sale_audits)
-    if sale_basis:
-        net_pct = calc.pct_of(sum((a.diff_value for a in sale_audits), D(0)), total_sale)
-        net_base = "of sale value"
-    else:
-        net_pct = calc.pct_of(total_diff, total_stock)
-        net_base = "of stock value"
+    basis = calc.sale_basis(audits)
+    total_stock, total_diff = basis.stock_total, basis.net_diff_all
+    sale_basis_flag = basis.has_any_sale
     avg_aging = round(sum(a.aging_days for a in with_aging) / len(with_aging)) if with_aging else None
     kpis = {
         "full_audits": n,
@@ -60,8 +52,8 @@ def build_aging(client, scope_qs, stores, period: calc.Period, today, store=None
         "delayed": len(delayed),
         "longest_delay": max((a.delay_days for a in delayed), default=None),
         "net_diff": total_diff,
-        "net_pct": net_pct,
-        "net_base": net_base,
+        "basis": basis,
+        "net_text": basis.sale_text() or basis.stock_text(),
     }
 
     # Quarter calendar
@@ -97,6 +89,9 @@ def build_aging(client, scope_qs, stores, period: calc.Period, today, store=None
             "remark": calc.register_remark(totals, a.sale_value, a.aging_days, a.delay_days,
                                            calc.status_for(a.var_pct_stock, th), a.largest_shortage_category or None),
         })
-    footer = {"stock": total_stock, "sale": total_sale if sale_basis else None, "diff": total_diff,
-              "pct": net_pct, "pct_base": net_base, "avg_aging": avg_aging, "late": len(delayed)}
-    return AgingReport(client, period, quarters, kpis, calendar, register, footer, sale_basis, stores)
+    footer = {"basis": basis, "n": basis.n_total, "stock": total_stock, "diff": total_diff,
+              "pct_stock": basis.pct_stock_all, "avg_aging": avg_aging, "late": len(delayed),
+              "sale_rows": basis.has_any_sale, "n_sale": basis.n_with_sale, "sale": basis.sale_total,
+              "diff_sale": basis.net_diff_with_sale, "pct_sale": basis.pct_sale,
+              "stock_sale": sum((a.stock_value for a in audits if calc.has_sale(a.sale_value)), D(0))}
+    return AgingReport(client, period, quarters, kpis, calendar, register, footer, sale_basis_flag, stores)

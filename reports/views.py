@@ -149,7 +149,7 @@ def dashboard(request):
          "sub": f"{qty(cur['wbc_qty'])} units, {pct(cur['wbc_pct'])} of stock value",
          "change": _change_pts(cur["wbc_pct"], prev["wbc_pct"], cmp=vs)},
         {"label": "Variance", "value": pct(cur["var_pct"]), "sub": "of stock value" + (
-            f", {pct(cur['var_pct_sale'])} of sale value" if cur["var_pct_sale"] is not None else ""),
+            f"; {cur['sale_text']}" if cur["sale_text"] else ""),
          "change": _change_pts(cur["var_pct"], prev["var_pct"], cmp=vs)},
     ]
     shortage_change = _change(abs(cur["shortage"]), abs(prev["shortage"]), lower_is_better=True, cmp=vs)

@@ -135,6 +135,80 @@ def has_sale(sale_value) -> bool:
 
 
 @dataclass
+class SaleBasis:
+    """Totals for a set of audits, keeping each percentage on a base the reader can reconcile.
+
+    The "all audits" figures use every audit (difference / stock value). The sale figures use only
+    the audits that have a sale value: their own difference divided by their own sale total.
+    """
+
+    n_total: int
+    n_with_sale: int
+    net_diff_all: Decimal
+    stock_total: Decimal
+    net_diff_with_sale: Decimal
+    sale_total: Decimal
+
+    @property
+    def pct_stock_all(self) -> Decimal:
+        return pct_of(self.net_diff_all, self.stock_total)
+
+    @property
+    def pct_sale(self) -> Decimal | None:
+        return sale_pct(self.net_diff_with_sale, self.sale_total) if self.n_with_sale else None
+
+    @property
+    def has_any_sale(self) -> bool:
+        return self.n_with_sale > 0 and self.sale_total > 0
+
+    @property
+    def all_have_sale(self) -> bool:
+        return self.has_any_sale and self.n_with_sale == self.n_total
+
+    @property
+    def partial_sale(self) -> bool:
+        return self.has_any_sale and self.n_with_sale < self.n_total
+
+    def sale_text(self) -> str | None:
+        """'-0.27% of sale value', with its own rupee base when only some audits have a sale value."""
+        if not self.has_any_sale:
+            return None
+        text = f"{pct(self.pct_sale)} of sale value"
+        if self.partial_sale:
+            noun = "audit that has" if self.n_with_sale == 1 else "audits that have"
+            text += (f" ({inr(self.net_diff_with_sale)} on the {self.n_with_sale} of {self.n_total} "
+                     f"{noun} a sale value)")
+        return text
+
+    def stock_text(self) -> str:
+        return f"{pct(self.pct_stock_all)} of stock value"
+
+
+def sale_basis(audits) -> SaleBasis:
+    """audits: objects or dicts with diff_value, stock_value, sale_value."""
+    def get(a, k):
+        return a.get(k) if isinstance(a, dict) else getattr(a, k)
+
+    n = n_sale = 0
+    diff_all = stock = diff_sale = sale = D0
+    for a in audits:
+        n += 1
+        diff_all += D(get(a, "diff_value"))
+        stock += D(get(a, "stock_value"))
+        if has_sale(get(a, "sale_value")):
+            n_sale += 1
+            diff_sale += D(get(a, "diff_value"))
+            sale += D(get(a, "sale_value"))
+    return SaleBasis(n, n_sale, diff_all, stock, diff_sale, sale)
+
+
+def sale_basis_from_totals(n_total, n_with_sale, net_diff_all, stock_total, net_diff_with_sale, sale_total) -> SaleBasis:
+    """Same as sale_basis() from database aggregates."""
+    return SaleBasis(int(n_total or 0), int(n_with_sale or 0), D(net_diff_all), D(stock_total),
+                     D(net_diff_with_sale), D(sale_total))
+
+
+@dataclass
 class Numbers:
     """The eight entered numbers for one category (or an audit total)."""
 

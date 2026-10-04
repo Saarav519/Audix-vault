@@ -23,7 +23,7 @@
   <div class="kpi"><span class="label">Average aging</span><span class="value num">{% if k.avg_aging is not None %}{{ k.avg_aging }} days{% else %}None{% endif %}</span><span class="sub">between audits</span></div>
   <div class="kpi"><span class="label">Done on time</span><span class="value num">{% if k.on_time_pct is not None %}{{ k.on_time_pct|floatformat:0 }}%{% else %}None{% endif %}</span><span class="sub">{{ k.on_time }} of {{ k.on_time|add:k.delayed }} audits</span></div>
   <div class="kpi"><span class="label">Delayed audits</span><span class="value num {% if k.delayed %}tone-bad{% endif %}">{{ k.delayed }}</span><span class="sub">{% if k.longest_delay %}longest {{ k.longest_delay }} days late{% else %}none late{% endif %}</span></div>
-  <div class="kpi"><span class="label">Net difference</span><span class="value num {{ k.net_diff|money_class }}">{{ k.net_diff|cinr }}</span><span class="sub">{{ k.net_pct|pct }} {{ k.net_base }}</span></div>
+  <div class="kpi"><span class="label">Net difference</span><span class="value num {{ k.net_diff|money_class }}">{{ k.net_diff|cinr }}</span><span class="sub">{{ k.net_text }}</span></div>
 </section>
 {% endwith %}
 
@@ -51,7 +51,10 @@
     <td>{% if r.audit.aging_days is None %}<span class="muted">Not applicable</span>{% elif r.audit.delay_days %}{% status_pill r.delay "bad" %}{% else %}{% status_pill "On time" "good" %}{% endif %}</td>
     <td class="remark-col">{{ r.remark }}</td>
   </tr>{% empty %}<tr><td colspan="10" class="empty">No full audits in this period.</td></tr>{% endfor %}</tbody>
-  {% if report.register %}<tfoot><tr><td colspan="3">Total, {{ report.register|length }} audit{{ report.register|length|pluralize }}</td><td class="num">{{ report.footer.stock|cinr }}</td><td class="num">{% if report.footer.sale is not None %}{{ report.footer.sale|cinr }}{% endif %}</td><td class="num {{ report.footer.diff|money_class }}">{{ report.footer.diff|cinr }}</td><td class="num">{{ report.footer.pct|pct }}<span class="sub">{{ report.footer.pct_base }}</span></td><td class="num">{% if report.footer.avg_aging is not None %}{{ report.footer.avg_aging }} days avg{% endif %}</td><td>{% if report.footer.late %}{{ report.footer.late }} late{% endif %}</td><td></td></tr></tfoot>{% endif %}
+  {% if report.register %}{% with f=report.footer %}<tfoot>
+    <tr><td colspan="3">All audits ({{ f.n }})</td><td class="num">{{ f.stock|cinr }}</td><td class="num"></td><td class="num {{ f.diff|money_class }}">{{ f.diff|cinr }}</td><td class="num">{{ f.pct_stock|pct }}<span class="sub">of stock value</span></td><td class="num">{% if f.avg_aging is not None %}{{ f.avg_aging }} days avg{% endif %}</td><td>{% if f.late %}{{ f.late }} late{% endif %}</td><td></td></tr>
+    {% if f.sale_rows %}<tr><td colspan="3">Audits with sale value ({{ f.n_sale }} of {{ f.n }})</td><td class="num">{{ f.stock_sale|cinr }}</td><td class="num">{{ f.sale|cinr }}</td><td class="num {{ f.diff_sale|money_class }}">{{ f.diff_sale|cinr }}</td><td class="num">{{ f.pct_sale|pct }}<span class="sub">of sale value</span></td><td></td><td></td><td></td></tr>{% endif %}
+  </tfoot>{% endwith %}{% endif %}
   </table></div>
   <p class="hint" style="margin:14px 0 0">Aging is the number of days since the same store’s previous full audit. Delay is the days beyond the {{ client.cycle_days }}-day cycle. Sale value is the client’s sales from the previous audit to this one. Shortage % uses sale value when the client gives it, and stock value when they do not.</p>
 </section>

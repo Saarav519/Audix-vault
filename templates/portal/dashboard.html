@@ -15,7 +15,7 @@
   <div class="hero-l">
     <p class="muted" id="hero-h" style="font-weight:500">Net variance, {{ window_text }}</p>
     <div class="big-num num {{ cur.diff_value|money_class }}">{{ cur.diff_value|cinr }}</div>
-    <p class="muted">{{ cur.var_pct|pct }} of the {{ cur.stock_value|cinr }} stock value audited, across {{ cur.audits }} audit{{ cur.audits|pluralize }}{% if cur.var_pct_sale is not None %}; {{ cur.var_pct_sale|pct }} of sale value{% endif %}</p>
+    <p class="muted">{{ cur.var_pct|pct }} of the {{ cur.stock_value|cinr }} stock value audited, across {{ cur.audits }} audit{{ cur.audits|pluralize }}{% if cur.sale_text %}; {{ cur.sale_text }}{% endif %}</p>
     <dl class="split">
       <div><dt>Shortage</dt><dd class="shortage num">{{ cur.shortage|absval|cinr }}</dd><small>{{ cur.shortage_qty|absval|qty }} units</small></div>
       <div><dt>Excess</dt><dd class="excess num">{{ cur.excess|cinr }}</dd><small>{{ cur.excess_qty|qty }} units</small></div>

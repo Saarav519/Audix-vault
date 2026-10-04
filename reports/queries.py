@@ -25,10 +25,14 @@ def window_totals(qs) -> dict:
         excess_qty=Sum("diff_qty", filter=Q(diff_value__gt=0)),
         sale_diff=Sum("diff_value", filter=Q(sale_value__gt=0)),
         sale=Sum("sale_value", filter=Q(sale_value__gt=0)),
+        n_with_sale=Count("id", filter=Q(sale_value__gt=0)),
     )
-    out = {k.removeprefix("t_"): (D(v) if k != "audits" else (v or 0)) for k, v in agg.items()}
+    out = {k.removeprefix("t_"): (D(v) if k not in ("audits", "n_with_sale") else (v or 0)) for k, v in agg.items()}
     out["var_pct"] = calc.pct_of(out["diff_value"], out["stock_value"])
-    out["var_pct_sale"] = calc.sale_pct(out["sale_diff"], out["sale"]) if out["sale"] else None
+    out["basis"] = calc.sale_basis_from_totals(out["audits"], out["n_with_sale"], out["diff_value"], out["stock_value"],
+                                               out["sale_diff"], out["sale"])
+    out["var_pct_sale"] = out["basis"].pct_sale
+    out["sale_text"] = out["basis"].sale_text()
     out["damage_pct"] = calc.pct_of(out["damage_value"], out["stock_value"])
     out["wbc_pct"] = calc.pct_of(out["wbc_value"], out["stock_value"])
     return out
