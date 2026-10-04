@@ -55,9 +55,12 @@ def detail_context(request, audit: Audit) -> dict:
     nums = audit.numbers_by_category()
     totals = calc.audit_totals(nums)
     prev_lines = comparison.a.lines if comparison else {}
-    change = {r.category: r.change_value for r in comparison.categories} if comparison else {}
-    cat_rows = [{"n": n, "prev": prev_lines.get(n.category), "change": change.get(n.category),
+    by_cat = {r.category: r for r in comparison.categories} if comparison else {}
+    cat_rows = [{"n": n, "prev": prev_lines.get(n.category),
+                 "change": by_cat[n.category].change_value if n.category in by_cat else None,
+                 "change_units": by_cat[n.category].change_units if n.category in by_cat else None,
                  "status": calc.status_for(n.var_pct, th)} for n in nums]
+    cat_total = calc.sheet_total(nums, comparison.a.totals if comparison else None)
     files = list(audit.files.active().order_by("kind", "sort_order", "uploaded_at"))
     by_kind = {k: [f for f in files if f.kind == k] for k in FileKind.values}
     total_bytes = sum(f.size_bytes for f in files)
@@ -74,7 +77,7 @@ def detail_context(request, audit: Audit) -> dict:
         edits = list(ActivityLog.objects.filter(audit=audit, action_type=ActionType.ADMIN_CHANGE)[:20])
     return {
         "audit": audit, "client_view": client_view, "previous": previous, "cmp": comparison, "totals": totals,
-        "cat_rows": cat_rows, "observations": list(audit.observations.select_related("category")),
+        "cat_rows": cat_rows, "cat_total": cat_total, "observations": list(audit.observations.select_related("category")),
         "followups": followups, "files": by_kind, "signoffs": by_kind[FileKind.SIGNOFF],
         "photos": by_kind[FileKind.PHOTO],
         "reports": [(k, label, by_kind[k]) for k, label in (

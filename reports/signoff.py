@@ -43,6 +43,7 @@ TONE = {"good": GOOD, "warn": WARN, "bad": SHORT, "neutral": MUTED}
 STATUS_TONE = {"Healthy": GOOD, "Watch": WARN, "Review": SHORT}
 
 PAGE_W, PAGE_H = A4
+MM = 72 / 25.4
 M = 26  # page margin
 W = PAGE_W - 2 * M
 ELLIPSIS = "…"
@@ -62,6 +63,7 @@ class SheetData:
     previous: object = None
     comparison: object = None
     rows: list = field(default_factory=list)
+    total_row: object = None
     observations: list = field(default_factory=list)
     next_steps: list = field(default_factory=list)
     followup_line: str = ""
@@ -88,6 +90,7 @@ def build_data(audit, portal_url: str) -> SheetData:
         data.comparison = services.comparison_for(previous, audit)
         prev_lines = data.comparison.a.lines
         data.rows = calc.sheet_categories(lines, prev_lines)
+        data.total_row = calc.sheet_total(lines, data.comparison.a.totals)
         data.next_steps = calc.improvement_points(data.comparison.a, data.comparison.b, th)
         counts = {"done": 0, "in_progress": 0, "not_done": 0}
         for fu in audit.followups.all():
@@ -97,6 +100,7 @@ def build_data(audit, portal_url: str) -> SheetData:
                                   f"{counts['in_progress']} in progress, {counts['not_done']} not done")
     else:
         data.rows = calc.sheet_categories(lines, None)
+        data.total_row = calc.sheet_total(lines)
         data.next_steps = list(dict.fromkeys(this_recs))
     if calc.has_sale(audit.sale_value):
         if previous is not None:
@@ -267,7 +271,7 @@ def draw_kpis(p: Pen, d: SheetData, y):
         var_sub += f" · {pct(a.var_pct_sale)} of sale value"
     tiles = [
         ("Stock value", inr(t.stock_value), f"{qty(t.stock_qty)} units", None),
-        ("Total physical value", inr(t.total_physical_value), "Physical + damage + WBC", None),
+        ("Total physical value", inr(t.total_physical_value), f"{qty(t.total_physical_qty)} units", None),
         ("Difference", inr(t.diff_value), f"{qty(t.diff_qty)} units", SHORT if t.diff_value < 0 else (EXCESS if t.diff_value > 0 else INK)),
         ("Variance % of stock value", pct(a.var_pct_stock), var_sub, None),
     ]
@@ -288,7 +292,7 @@ def draw_kpis(p: Pen, d: SheetData, y):
 
 
 def draw_summary_and_side(p: Pen, d: SheetData, y):
-    h = 126
+    h = 130
     gap = 8
     lw = W * 0.47
     rw = W - lw - gap
@@ -331,7 +335,7 @@ def draw_summary_and_side(p: Pen, d: SheetData, y):
     return y - h
 
 
-COMPARE_LABELS = ["Net variance", "Variance % of stock value", "Variance % of sale value", "Damage",
+COMPARE_LABELS = ["Net variance", "Difference, units", "Variance % of stock value", "Variance % of sale value", "Damage",
                   "WBC (Without Barcode)"]
 
 
@@ -350,8 +354,9 @@ def draw_compare(p: Pen, d: SheetData, x, y, w):
     p.text(c1, y - 25, "Last", 6.5, False, MUTED, "right")
     p.text(c2, y - 25, "This audit", 6.5, False, MUTED, "right")
     p.text(c3, y - 25, "Change", 6.5, False, MUTED, "right")
-    ry = y - 37
+    ry = y - 36
     size = 6.4
+    step = 11 if len(rows) > 6 else 12
     for r in rows:
         label = "Variance % of stock" if r.label == "Variance % of stock value" else (
             "Variance % of sale" if r.label == "Variance % of sale value" else r.label)
@@ -362,12 +367,12 @@ def draw_compare(p: Pen, d: SheetData, x, y, w):
         p.c.setStrokeColor(LINE)
         p.c.setLineWidth(0.4)
         p.c.line(x + 8, ry - 3.5, x + w - 8, ry - 3.5)
-        ry -= 12
+        ry -= step
     sentence = next((s for s in cmp.sentences if s.startswith("Net variance is")), None)
     if sentence is None:
         sentence = "Net variance is about the same as at the last audit."
-    for i, line in enumerate(p.clip(p.wrap(sentence, 7, w - 16), 2, 7, w - 16)):
-        p.text(x + 8, ry - 3 - i * 9, line, 7, True)
+    for i, line in enumerate(p.clip(p.wrap(sentence, 6.8, w - 16), 2, 6.8, w - 16)):
+        p.text(x + 8, ry - 2 - i * 8.6, line, 6.8, True)
 
 
 def draw_glance(p: Pen, d: SheetData, x, y, w):
@@ -376,129 +381,204 @@ def draw_glance(p: Pen, d: SheetData, x, y, w):
     p.text(x + w - 8, y - 13, "First audit for this store", 6.5, False, MUTED, "right")
     worst = calc.largest_shortage(d.lines)
     above = [n.category for n in d.lines if abs(n.var_pct) > th.warn_pct]
+    size, value_w = 6.8, w * 0.66
+    worst_text = "None"
+    if worst:
+        tail = f", {qty(worst.diff_qty, signed=True)} units, {inr(worst.diff_value)} ({pct(worst.var_pct)})"
+        name_w = max(value_w - p.width(tail, size, True), 30)
+        worst_text = p.fit(worst.category, size, name_w, True) + tail
     rows = [
-        ("Largest shortage", f"{worst.category}, {inr(worst.diff_value)} ({pct(worst.var_pct)})" if worst else "None"),
-        ("Damage", f"{inr(t.damage_value)} ({pct(t.damage_pct)} of stock value)"),
-        ("WBC (Without Barcode)", f"{inr(t.wbc_value)} ({pct(t.wbc_pct)} of stock value)"),
+        ("Largest shortage", worst_text),
+        ("Difference", f"{qty(t.diff_qty, signed=True)} units, {inr(t.diff_value)} ({pct(t.var_pct)})"),
+        ("Damage", f"{qty(t.damage_qty)} units, {inr(t.damage_value)} ({pct(t.damage_pct)})"),
+        ("WBC (Without Barcode)", f"{qty(t.wbc_qty)} units, {inr(t.wbc_value)} ({pct(t.wbc_pct)})"),
         (f"Categories above {plain_pct(th.warn_pct)}", f"{len(above)} of {len(d.lines)}"),
-        ("Audit type", a.get_audit_type_display()),
-        ("Shift", a.get_shift_display()),
+        ("Audit type and shift", f"{a.get_audit_type_display()}, {a.get_shift_display()}"),
     ]
     ry = y - 30
     for label, value in rows:
-        p.text(x + 8, ry, label, 6.8, False, MUTED)
-        p.text(x + w - 8, ry, p.fit(value, 6.8, w * 0.62), 6.8, True, INK, "right")
+        p.text(x + 8, ry, label, size, False, MUTED)
+        p.text(x + w - 8, ry, p.fit(value, size, value_w, True), size, True, INK, "right")
         p.c.setStrokeColor(LINE)
         p.c.setLineWidth(0.4)
         p.c.line(x + 8, ry - 3.5, x + w - 8, ry - 3.5)
-        ry -= 13.5
+        ry -= 14
+    p.text(x + 8, ry - 1, "Percentages are of stock value.", 6.3, False, MUTED)
 
 
 # ---------------------------------------------------------------- category table
 
 
+ROW_MAX, ROW_MIN = 5.2 * MM, 3.4 * MM  # row height range
+FONT_MAX, FONT_MIN = 7.0, 6.0
+CAT_TITLE_H = 13  # title and caption line
+CAT_HEAD_H = 20  # two header rows
+CATEGORY_CAPTION = "Quantity and value, amounts in rupees. Total physical = Physical + Damage + WBC."
+
+
 def category_layout(n_rows: int, budget: float):
-    """(columns, rows_per_column, row_height, font_size). Two tables side by side from 14 rows."""
-    cols = 1 if n_rows <= 13 else 2
-    per_col = n_rows if cols == 1 else -(-n_rows // 2)
-    head = 13 + 12  # title + header row
-    row_h = max(8.6, min(13.0, (budget - head) / max(per_col, 1)))
-    size = max(5.6, min(7.4, row_h * 0.58))
-    return cols, per_col, row_h, size
+    """(row_height, font_size) for n category rows plus the Total row within the height budget.
+    Rows shrink from 5.2 mm to 3.4 mm and the font from 7.0 to 6.0 pt as the number of rows grows."""
+    row_h = (budget - CAT_TITLE_H - CAT_HEAD_H - 4) / max(n_rows + 1, 1)
+    row_h = max(ROW_MIN, min(ROW_MAX, row_h))
+    size = FONT_MIN + (FONT_MAX - FONT_MIN) * (row_h - ROW_MIN) / (ROW_MAX - ROW_MIN)
+    return row_h, round(size, 2)
+
+
+def category_height(n_rows: int, row_h: float) -> float:
+    return CAT_TITLE_H + CAT_HEAD_H + (n_rows + 1) * row_h + 4
 
 
 def draw_categories(p: Pen, d: SheetData, y, budget):
     rows = d.rows
-    has_prev = d.comparison is not None
-    cols, per_col, row_h, size = category_layout(len(rows), budget)
-    title = "Category-wise summary" + (" (compact two-column view)" if cols == 2 else "")
-    p.text(M, y - 10, title, 8.5, True)
-    if cols == 2:
-        p.text(M + W, y - 10, "Value and % of stock value", 6.5, False, MUTED, "right")
-    top = y - 14
-    gap = 10
-    tw = (W - gap * (cols - 1)) / cols
-    max_var = max([abs(r.numbers.var_pct) for r in rows] + [Decimal("0.5")])
-    for ci in range(cols):
-        chunk = rows[ci * per_col:(ci + 1) * per_col]
-        if not chunk:
-            continue
-        draw_category_table(p, chunk, M + ci * (tw + gap), top, tw, row_h, size, has_prev, cols == 2, max_var)
-    used = 14 + 12 + per_col * row_h + 4
-    return y - used
+    row_h, size = category_layout(len(rows), budget)
+    p.text(M, y - 9, "Category-wise summary", 8.5, True)
+    p.text(M + W, y - 9, CATEGORY_CAPTION, 6.3, False, MUTED, "right")
+    draw_category_table(p, d, M, y - CAT_TITLE_H, W, row_h, size)
+    return y - category_height(len(rows), row_h)
 
 
-def draw_category_table(p: Pen, chunk, x, top, w, row_h, size, has_prev, compact, max_var):
+def _diff_colour(value):
+    return SHORT if value < 0 else (EXCESS if value > 0 else INK)
+
+
+def draw_category_table(p: Pen, d: SheetData, x, top, w, row_h, size):
+    """One full-width table: Stock, Total physical and Difference as quantity and value, Var %, then
+    Change vs last audit when there is a previous audit, or a small Var % bar for a first audit."""
     c = p.c
-    headers = ["Category", "Stock", "Total physical", "Difference", "Var %"]
-    cells = []
-    for r in chunk:
+    has_prev = d.comparison is not None
+    body = list(d.rows) + [d.total_row]
+
+    def cells(r):
         n = r.numbers
-        row = [r.name, inr(n.stock_value), inr(n.total_physical_value), inr(n.diff_value), pct(n.var_pct)]
+        out = [qty(n.stock_qty), inr(n.stock_value), qty(n.total_physical_qty), inr(n.total_physical_value),
+               qty(n.diff_qty, signed=True), inr(n.diff_value), pct(n.var_pct)]
         if has_prev:
-            row.append(r.change.text if r.change else "New")
-        elif not compact:
-            row += [f"{inr(n.damage_value)} ({pct(n.damage_pct)})", f"{inr(n.wbc_value)} ({pct(n.wbc_pct)})"]
-        cells.append(row)
-    if has_prev:
-        headers.append("Change vs last audit" if not compact else "Change")
-    elif not compact:
-        headers += ["Damage", "WBC"]
-    bar_w = 0 if compact else 46
-    # fit the numeric columns at this font size, shrink the font if needed; the "Other (N more)"
-    # label must always be readable in full
+            out.append(r.change.text if r.change else "New")
+        return out
+
+    table = [cells(r) for r in body]
+    sub_heads = ["Qty", "Value", "Qty", "Value", "Qty", "Value", "Var %"] + (["vs last audit"] if has_prev else [])
+    max_var = max([abs(r.numbers.var_pct) for r in d.rows] + [Decimal("0.5")])
+    pad = 8
     while True:
-        widths = [max(p.width(h, size - 0.6, False), *(p.width(r[i], size, False) for r in cells)) + 7
-                  for i, h in enumerate(headers)][1:]
-        name_w = w - sum(widths) - bar_w - 8
-        need = max([52] + [p.width(r.name, size, True) + 6 for r in chunk if r.is_other])
-        if name_w >= need or size <= 5.0:
+        hsize = size - 0.6
+        widths = [max(p.width(h, hsize), *(p.width(row[i], size, True) for row in table)) + pad
+                  for i, h in enumerate(sub_heads)]
+        bar_w = 0 if has_prev else 64
+        name_w = w - sum(widths) - bar_w - 6
+        need = max([62] + [p.width(r.name, size, True) + 8 for r in body if r.is_other])
+        if name_w >= need or size <= 5.2:
             break
-        size -= 0.2
-    hy = top - 9
+        size = round(size - 0.2, 2)
+    # column right edges
+    rights, cx = [], x + 4 + name_w
+    for wd in widths:
+        cx += wd
+        rights.append(cx)
+    lefts = [r - wd for r, wd in zip(rights, widths, strict=True)]
+
+    # header: group row and sub row
+    head_top = top
     c.setFillColor(RAISE)
-    c.rect(x, top - 12, w, 12, stroke=0, fill=1)
-    p.text(x + 4, hy, "Category", size - 0.6, False, MUTED)
-    cx = x + 4 + name_w
-    col_right = []
-    for i, h in enumerate(headers[1:5]):
-        cx += widths[i]
-        col_right.append(cx)
-        p.text(cx, hy, h, size - 0.6, False, MUTED, "right")
-    bar_x = cx + 6
+    c.rect(x, head_top - CAT_HEAD_H, w, CAT_HEAD_H, stroke=0, fill=1)
+    hsize = size - 0.6
+    g_y, s_y = head_top - 8, head_top - 17
+    groups = [("Stock", 0, 1), ("Total physical", 2, 3), ("Difference", 4, 5)]
+    if has_prev:
+        groups.append(("Change", 7, 7))
+    c.setStrokeColor(LINE)
+    c.setLineWidth(0.5)
+    for label, i0, i1 in groups:
+        gx0, gx1 = lefts[i0] + 3, rights[i1]
+        p.text((gx0 + gx1) / 2, g_y, label, hsize + 0.3, True, INK, "center")
+        c.line(gx0, g_y - 2.6, gx1, g_y - 2.6)
+    p.text(x + 4, s_y, "Category", hsize, False, MUTED)
+    for i, h in enumerate(sub_heads):
+        p.text(rights[i], s_y, h, hsize, False, MUTED, "right")
+    bar_x = rights[-1] + 10
     if bar_w:
-        cx += bar_w
-    for j, h in enumerate(headers[5:], start=4):
-        cx += widths[j]
-        col_right.append(cx)
-        p.text(cx, hy, h, size - 0.6, False, MUTED, "right")
-    ry = top - 12 - row_h
-    for r, row in zip(chunk, cells, strict=True):
-        base = ry + (row_h - size) / 2 + 0.6
+        p.text(bar_x, s_y, "Var % bar", hsize, False, MUTED)
+
+    ry = head_top - CAT_HEAD_H - row_h
+    for r, row in zip(body, table, strict=True):
         n = r.numbers
-        p.text(x + 4, base, p.fit(row[0], size, name_w - 4, r.is_other), size, r.is_other)
-        diff_col = SHORT if n.diff_value < 0 else (EXCESS if n.diff_value > 0 else INK)
-        for i, val in enumerate(row[1:]):
-            col = diff_col if i in (2, 3) else INK
-            if i == 4 and has_prev and r.change is not None:
+        bold = r.is_other or r.is_total
+        if r.is_total:
+            c.setFillColor(RAISE)
+            c.rect(x, ry, w, row_h, stroke=0, fill=1)
+            c.setStrokeColor(INK)
+            c.setLineWidth(0.7)
+            c.line(x, ry + row_h, x + w, ry + row_h)
+        base = ry + (row_h - size) / 2 + 0.7
+        p.text(x + 4, base, p.fit(r.name, size, name_w - 6, bold), size, bold)
+        dc = _diff_colour(n.diff_value)
+        for i, val in enumerate(row):
+            col = dc if i in (4, 5) else INK
+            if i == 7 and r.change is not None:
                 col = TONE.get(r.change.tone, MUTED)
-            p.text(col_right[i], base, val, size, False, col, "right")
-        if bar_w:
-            bw = float(abs(n.var_pct) / max_var) * (bar_w - 8)
+            p.text(rights[i], base, val, size, r.is_total, col, "right")
+        if bar_w and not r.is_total:
+            bw = float(abs(n.var_pct) / max_var) * (bar_w - 12)
             c.setFillColor(LINE)
-            c.rect(bar_x, base + 0.6, bar_w - 8, 2.6, stroke=0, fill=1)
-            c.setFillColor(diff_col if n.diff_value != 0 else MUTED)
-            c.rect(bar_x, base + 0.6, max(bw, 0.8), 2.6, stroke=0, fill=1)
-        c.setStrokeColor(LINE)
-        c.setLineWidth(0.35)
-        c.line(x, ry, x + w, ry)
+            c.rect(bar_x, base + 0.4, bar_w - 12, 2.6, stroke=0, fill=1)
+            c.setFillColor(dc if n.diff_value != 0 else MUTED)
+            c.rect(bar_x, base + 0.4, max(bw, 0.8), 2.6, stroke=0, fill=1)
+        if not r.is_total:
+            c.setStrokeColor(LINE)
+            c.setLineWidth(0.35)
+            c.line(x, ry, x + w, ry)
         ry -= row_h
 
 
 # ---------------------------------------------------------------- observations and next steps
 
 
+SCALE_MAX, SCALE_MIN = 1.22, 0.9
+SCALES = [round(SCALE_MAX - i * 0.02, 2) for i in range(int((SCALE_MAX - SCALE_MIN) / 0.02) + 1)]
+OBS_SHOWN = 5
+STEP_LINES = 3
+
+
+def _obs_items(p: Pen, d: SheetData, inner, size):
+    out = []
+    for o in d.observations[:OBS_SHOWN]:
+        text_lines = p.wrap(o.text, size, inner)
+        rec_lines = p.wrap(f"Recommendation: {o.recommendation}", size, inner) if o.recommendation else []
+        out.append((o, text_lines, rec_lines))
+    return out
+
+
+def obs_fit_scale(p: Pen, d: SheetData, inner, avail):
+    """Largest text scale at which every shown observation fits in full, or None."""
+    more = len(d.observations) > OBS_SHOWN
+    for sc in SCALES:
+        size, lead = 6.8 * sc, 8.2 * sc
+        need = sum(lead * (1 + len(t) + len(r)) + 3 for _, t, r in _obs_items(p, d, inner, size))
+        if need + (10 if more else 0) <= avail:
+            return sc
+    return None
+
+
+def _steps(d: SheetData):
+    steps = list(d.next_steps)
+    if d.followup_line:
+        steps.append(d.followup_line)
+    return steps
+
+
+def steps_fit_scale(p: Pen, steps, inner, avail):
+    for sc in SCALES:
+        size, lead = 6.8 * sc, 8.2 * sc
+        need = sum(lead * min(STEP_LINES, len(p.wrap(st, size, inner - 10 * sc))) + 2 for st in steps)
+        if need <= avail:
+            return sc
+    return None
+
+
 def draw_observations(p: Pen, d: SheetData, y, budget):
+    """Observations (left) and next steps (right). Text is scaled up to 1.22x when everything fits,
+    otherwise scaled down and clipped with "+ N more in the portal"."""
     gap = 10
     lw = W * 0.58
     rw = W - lw - gap
@@ -507,35 +587,38 @@ def draw_observations(p: Pen, d: SheetData, y, budget):
     box(c, M + lw + gap, y, rw, budget, fill=colors.white)
     p.text(M + 8, y - 12, "Observations and recommendations", 8.5, True)
     p.text(M + lw + gap + 8, y - 12, "Next steps", 8.5, True)
-    size, lead = 6.8, 8.2
-    inner = lw - 16
     bottom = y - budget + 6
-    ry = y - 24
-    obs = d.observations[:5]
-    more = max(0, len(d.observations) - 5)
-    shown = 0
-    for i, o in enumerate(obs):
-        remaining = len(obs) - i
-        avail = ry - bottom - (10 if (remaining > 1 or more) else 0)
-        # lines this item may use: share what is left, at least header + 1 + 1
-        share = max(3, int(avail / remaining / lead))
-        text_lines = p.wrap(o.text, size, inner)
-        rec_lines = p.wrap(f"Recommendation: {o.recommendation}", size, inner) if o.recommendation else []
-        t_max = max(1, min(len(text_lines), share - 1 - min(len(rec_lines), 2)))
-        r_max = max(0, min(len(rec_lines), share - 1 - t_max))
-        need = lead * (1 + t_max + r_max) + 3
-        if need > ry - bottom:
-            more += len(obs) - i
-            break
-        tag = p.fit(o.category_label, 6.3, 120, True)
-        tw = p.width(tag, 6.3, True) + 8
+    top = y - 24
+    inner = lw - 16
+
+    sc = obs_fit_scale(p, d, inner, top - bottom + 2)
+    full = sc is not None
+    sc = sc or SCALE_MIN
+    size, lead, tag_size = 6.8 * sc, 8.2 * sc, 6.3 * min(sc, 1.1)
+    ry = top
+    items = _obs_items(p, d, inner, size)
+    more = max(0, len(d.observations) - OBS_SHOWN)
+    for i, (o, text_lines, rec_lines) in enumerate(items):
+        if full:
+            t_max, r_max = len(text_lines), len(rec_lines)
+        else:
+            remaining = len(items) - i
+            avail = ry - bottom - (10 if (remaining > 1 or more) else 0)
+            share = max(3, int(avail / remaining / lead))
+            t_max = max(1, min(len(text_lines), share - 1 - min(len(rec_lines), 2)))
+            r_max = max(0, min(len(rec_lines), share - 1 - t_max))
+            if lead * (1 + t_max + r_max) + 3 > ry - bottom:
+                more += len(items) - i
+                break
+        tag = p.fit(o.category_label, tag_size, 120 * sc, True)
+        tw = p.width(tag, tag_size, True) + 8
         c.setFillColor(RAISE)
         c.setStrokeColor(LINE)
-        c.roundRect(M + 8, ry - 2.4, tw, 9.4, 2, stroke=1, fill=1)
-        p.text(M + 12, ry, tag, 6.3, True)
-        sev = o.get_severity_display()
-        pill(p, M + 12 + tw, ry, sev, {"high": SHORT, "medium": WARN}.get(o.severity, MUTED), 6.0)
-        p.text(M + lw - 8, ry, o.get_kind_display(), 6.3, False, MUTED, "right")
+        c.roundRect(M + 8, ry - 2.4, tw, tag_size + 3.1, 2, stroke=1, fill=1)
+        p.text(M + 12, ry, tag, tag_size, True)
+        pill(p, M + 12 + tw, ry, o.get_severity_display(), {"high": SHORT, "medium": WARN}.get(o.severity, MUTED),
+             tag_size - 0.3)
+        p.text(M + lw - 8, ry, o.get_kind_display(), tag_size, False, MUTED, "right")
         ry -= lead
         for line in p.clip(text_lines, t_max, size, inner):
             p.text(M + 8, ry, line, size)
@@ -544,33 +627,38 @@ def draw_observations(p: Pen, d: SheetData, y, budget):
             p.text(M + 8, ry, line, size, False, MUTED)
             ry -= lead
         ry -= 3
-        shown += 1
-    if not obs:
+    if not items:
         p.text(M + 8, ry, "No observation recorded.", size, False, MUTED)
     if more:
         p.text(M + 8, bottom + 1, f"+ {more} more in the portal", 6.5, True, LIME_INK)
 
     # next steps
     x = M + lw + gap + 8
-    inner = rw - 22
-    steps = list(d.next_steps)
-    if d.followup_line:
-        steps.append(d.followup_line)
-    ry = y - 24
+    inner = rw - 16
+    steps = _steps(d)
     if not steps:
-        p.text(x, ry, "Keep the current counting and receiving routine.", size, False, MUTED)
+        p.text(x, top, "Keep the current counting and receiving routine.", 6.8, False, MUTED)
         return y - budget
+    sc = steps_fit_scale(p, steps, inner, top - bottom + 2)
+    full = sc is not None
+    sc = sc or SCALE_MIN
+    size, lead = 6.8 * sc, 8.2 * sc
+    num_w = 10 * sc
+    ry = top
     for i, step in enumerate(steps):
-        remaining = len(steps) - i
-        avail = ry - bottom - (10 if remaining > 1 else 0)
-        lines = p.wrap(step, size, inner)
-        max_lines = max(1, min(len(lines), int(avail / remaining / lead), 4))
-        if lead * max_lines > ry - bottom - (10 if remaining > 1 else 0) or max_lines < 1:
-            p.text(x, bottom + 1, f"+ {remaining} more in the portal", 6.5, True, LIME_INK)
-            break
+        lines = p.wrap(step, size, inner - num_w)
+        if full:
+            max_lines = min(len(lines), STEP_LINES)
+        else:
+            remaining = len(steps) - i
+            avail = ry - bottom - (10 if remaining > 1 else 0)
+            max_lines = min(len(lines), STEP_LINES, int(avail / remaining / lead) or 1)
+            if lead * max_lines > ry - bottom - (10 if remaining > 1 else 0):
+                p.text(x, bottom + 1, f"+ {remaining} more in the portal", 6.5, True, LIME_INK)
+                break
         p.text(x, ry, f"{i + 1}.", size, True, LIME_INK)
-        for line in p.clip(lines, max_lines, size, inner):
-            p.text(x + 10, ry, line, size)
+        for line in p.clip(lines, max_lines, size, inner - num_w):
+            p.text(x + num_w, ry, line, size)
             ry -= lead
         ry -= 2
     return y - budget
@@ -663,6 +751,7 @@ def draw_watermark(p: Pen):
 
 
 FIXED_BELOW = 22 + 76 + 8 + 50  # declaration + signatures + gap + footer
+OBS_MIN = 90  # the observations block keeps at least this height while the table can still shrink
 
 
 def render(d: SheetData) -> bytes:
@@ -679,7 +768,8 @@ def render(d: SheetData) -> bytes:
     y = draw_summary_and_side(p, d, y) - 8
     bottom_limit = M + FIXED_BELOW + 8
     space = y - bottom_limit
-    cat_budget = min(206.0, space - 116)  # observations keep at least ~116pt
+    n = len(d.rows)
+    cat_budget = min(category_height(n, ROW_MAX), space - OBS_MIN)
     y = draw_categories(p, d, y, cat_budget) - 4
     obs_budget = y - bottom_limit - 2
     y = draw_observations(p, d, y, obs_budget) - 8

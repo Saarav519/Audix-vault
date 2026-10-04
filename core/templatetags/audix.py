@@ -111,6 +111,13 @@ def qty(value):
 
 
 @register.filter
+def qty_signed(value):
+    if value is None or value == "":
+        return "—"
+    return fm.qty(value, signed=True)
+
+
+@register.filter
 def pct(value, decimals=2):
     if value is None or value == "":
         return "—"
@@ -207,3 +214,9 @@ def detail_without_ref(entry):
         detail = detail.replace(ref, "", 1).strip()
         detail = detail.lstrip(":;,· ").strip()
     return detail
+
+
+@register.filter
+def pair(a, b):
+    """[a, b], to loop over two values in a template."""
+    return [a, b]

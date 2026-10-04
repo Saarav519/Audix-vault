@@ -13,7 +13,7 @@ from activity.models import ActivityLog
 from audits.models import Observation
 from clients.models import Category, Client, Store
 from core import calc
-from core.formatting import inr, pct
+from core.formatting import inr, pct, qty
 from reports import signoff
 from tests import factories as f
 
@@ -71,7 +71,7 @@ def test_normal_audit_with_previous():
     pages, text = pdf(signoff.signoff_pdf(audit, "https://vault.example.com/a/"))
     assert pages == 1
     check_common(text, audit)
-    assert "Compared with last audit" in text and "Change vs last audit" in text
+    assert "Compared with last audit" in text and "vs last audit" in text and "Difference, units" in text
     assert "Net variance is" in text
     assert "Sale value" in text and "5 Apr 2026" in text  # sale period from the previous audit
 
@@ -89,7 +89,7 @@ def test_first_audit_has_no_comparison():
     assert "recommendations: " not in text  # no follow-up line
 
 
-@pytest.mark.parametrize("n", [10, 14, 18, 26, 30])
+@pytest.mark.parametrize("n", [7, 10, 14, 18, 20, 21, 26, 30])
 @pytest.mark.parametrize("with_previous", [True, False])
 def test_many_categories_fit_one_page(n, with_previous):
     c = client_with(n, f"Many {n} {with_previous}")
@@ -97,20 +97,26 @@ def test_many_categories_fit_one_page(n, with_previous):
     pages, text = pdf(signoff.signoff_pdf(audit, "https://vault.example.com/a/"))
     assert pages == 1
     check_common(text, audit)
+    assert "compact two-column view" not in text
+    assert "Total physical = Physical + Damage + WBC" in text
     nums = audit.numbers_by_category()
-    if n <= 26:
-        for x in nums:
-            for value in (inr(x.stock_value), inr(x.total_physical_value), inr(x.diff_value), pct(x.var_pct)):
-                assert value in text, (x.category, value)
+    rows = calc.sheet_categories(nums)
+    if n <= 20:
+        assert len(rows) == n and not any(r.is_other for r in rows)
     else:
-        rows = calc.sheet_categories(nums)
-        assert len(rows) == 25 and rows[-1].name == "Other (6 more)"
-        assert "Other (6 more)" in text
-        for r in rows:
-            assert inr(r.numbers.stock_value) in text and inr(r.numbers.diff_value) in text
-    if n >= 14:
-        assert "compact two-column view" in text
-        assert "Total physical" in text
+        assert len(rows) == 20 and rows[-1].name == f"Other ({n - 19} more)"
+        assert f"Other ({n - 19} more)" in text
+    for r in rows:
+        x = r.numbers
+        for value in (qty(x.stock_qty), inr(x.stock_value), qty(x.total_physical_qty), inr(x.total_physical_value),
+                      qty(x.diff_qty, signed=True), inr(x.diff_value), pct(x.var_pct)):
+            assert value in text, (x.category, value)
+    total = calc.sheet_total(nums).numbers
+    t = audit.totals
+    for fld in calc.FIELDS:
+        assert getattr(total, fld) == getattr(t, fld), fld
+    for value in (qty(t.stock_qty), qty(t.total_physical_qty), qty(t.diff_qty, signed=True)):
+        assert value in text
     if not with_previous:
         for word in FIRST_AUDIT_FORBIDDEN:
             assert word not in text

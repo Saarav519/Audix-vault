@@ -9,7 +9,7 @@ from django.urls import reverse
 from tests import factories as f
 
 pytestmark = pytest.mark.django_db
-HIDDEN = ("Compared with last audit", "Open full comparison", "Last audit stock", "Last audit difference",
+HIDDEN = ("Compared with last audit", "Open full comparison", ">Last audit<", "Last audit difference",
           "Change in value", "Follow-up on last audit")
 
 
@@ -34,7 +34,7 @@ def test_detail_page_with_previous_still_compares(client_a, user_a):
     f.make_audit(client_a, audit_date=date(2026, 4, 5))
     second = f.make_audit(client_a, audit_date=date(2026, 7, 6))
     html = http_for(user_a).get(reverse("audits:detail", args=[second.pk])).content.decode()
-    for text in ("Compared with last audit", "Open full comparison", "Last audit stock", "Follow-up on last audit"):
+    for text in ("Compared with last audit", "Open full comparison", ">Last audit<", "Follow-up on last audit"):
         assert text in html
     assert "First audit for this store." not in html
 

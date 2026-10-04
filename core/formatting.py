@@ -54,13 +54,14 @@ def num(value, decimals: int = 0) -> str:
     return f"{sign}{indian_group(text)}"
 
 
-def qty(value) -> str:
-    """Quantity: whole numbers without decimals, otherwise up to 3 decimals."""
+def qty(value, signed: bool = False) -> str:
+    """Quantity: whole numbers without decimals, otherwise up to 3 decimals. `signed` adds "+" to an excess."""
     v = round_dec(value, 3)
     if v == v.to_integral_value():
-        return num(v, 0)
-    text = num(v, 3).rstrip("0").rstrip(".")
-    return text
+        text = num(v, 0)
+    else:
+        text = num(v, 3).rstrip("0").rstrip(".")
+    return f"+{text}" if signed and v > 0 else text
 
 
 def inr(value, decimals: int = 0, signed: bool = False) -> str:

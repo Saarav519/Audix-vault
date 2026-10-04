@@ -54,14 +54,14 @@
 </section>
 
 <section class="card">
-  <div class="card-head"><h2>Category-wise summary</h2><small>Values in rupees</small></div>
-  <div class="table-wrap"><table class="table" style="min-width:920px">
-  <thead><tr><th>Category</th><th class="num">Stock</th><th class="num">Total physical</th><th class="num">Difference</th><th class="num">Var %</th>{% if previous %}<th class="num">Last audit stock</th><th class="num">Last audit difference</th><th>Change in value</th>{% endif %}</tr></thead>
-  <tbody>{% for r in cat_rows %}<tr><td style="font-weight:500">{{ r.n.category }}</td><td class="num">{{ r.n.stock_value|inr }}</td><td class="num">{{ r.n.total_physical_value|inr }}</td>
-  <td class="num {{ r.n.diff_value|money_class }}">{{ r.n.diff_value|inr }}</td><td class="num">{{ r.n.var_pct|pct:1 }}</td>
-  {% if previous %}{% if r.prev %}<td class="num">{{ r.prev.stock_value|inr }}</td><td class="num">{{ r.prev.diff_value|inr }}<span class="sub">{{ r.prev.var_pct|pct:1 }}</span></td>
-  <td class="d tone-{{ r.change.tone }}">{% if r.change %}{{ r.change.text }}{% endif %}</td>
-  {% else %}<td class="muted" colspan="3">Not in the earlier audit</td>{% endif %}{% endif %}</tr>{% endfor %}</tbody>
+  <div class="card-head"><h2>Category-wise summary</h2><small>Quantity and value, amounts in rupees. Total physical = Physical + Damage + WBC.</small></div>
+  <div class="table-wrap"><table class="table qv" data-testid="category-table">
+  <thead>
+    <tr><th rowspan="2" class="cat">Category</th><th colspan="2" class="grp">Stock</th><th colspan="2" class="grp">Physical</th><th colspan="2" class="grp">Damage</th><th colspan="2" class="grp">WBC</th><th colspan="2" class="grp">Total physical</th><th colspan="2" class="grp">Difference</th><th rowspan="2" class="num">Var %</th>{% if previous %}<th colspan="4" class="grp">Last audit</th><th colspan="2" class="grp">Change</th>{% endif %}</tr>
+    <tr>{% for i in "123456" %}<th class="num gs">Qty</th><th class="num">Value</th>{% endfor %}{% if previous %}<th class="num gs">Stock qty</th><th class="num">Stock value</th><th class="num">Difference qty</th><th class="num">Difference value</th><th class="num gs">Value</th><th class="num">Units</th>{% endif %}</tr>
+  </thead>
+  <tbody>{% for r in cat_rows %}{% include "audits/partials/category_row.html" with n=r.n prev=r.prev change=r.change change_units=r.change_units %}{% endfor %}</tbody>
+  <tfoot>{% include "audits/partials/category_row.html" with n=cat_total.numbers prev=cat_total.previous change=cat_total.change change_units=cat_total.change_units total=True %}</tfoot>
   </table></div>
 </section>
 

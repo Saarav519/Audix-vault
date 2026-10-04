@@ -736,7 +736,11 @@ class CategoryRow:
 
     @property
     def verdict_tone(self):
-        return VERDICT_TONE[self.verdict]
+        return VERDICT_TONE.get(self.verdict, "neutral")
+
+    @property
+    def change_units(self) -> Change:
+        return change_in_units(self.a, self.b)
 
 
 @dataclass
@@ -760,6 +764,14 @@ class Comparison:
     followups: list
     improvements: list
     any_sale: bool
+
+    @property
+    def category_total(self) -> CategoryRow:
+        """Closing "Total" row of the category table: the sum of the rows shown, for A and for B."""
+        a = audit_totals(r.a for r in self.categories)
+        b = audit_totals(r.b for r in self.categories)
+        a.category = b.category = "Total"
+        return CategoryRow("Total", a, b, change_in_value(a, b), "")
 
 
 def followup_status(obs: Obs, a: AuditData, b: AuditData, th: Thresholds) -> str:
@@ -816,6 +828,8 @@ def compare(a: AuditData, b: AuditData, th: Thresholds | None = None) -> Compari
         overall.append(OverallRow("Sale value", sa, sb, ch))
     overall.append(OverallRow("Net variance", inr(ta.diff_value), inr(tb.diff_value),
                               change_abs_relative(ta.diff_value, tb.diff_value)))
+    overall.append(OverallRow("Difference, units", f"{qty(ta.diff_qty, signed=True)} units",
+                              f"{qty(tb.diff_qty, signed=True)} units", change_in_units(ta, tb)))
     overall.append(OverallRow("Variance % of stock value", pct(ta.var_pct), pct(tb.var_pct),
                               change_pts(ta.var_pct, tb.var_pct)))
     if any_sale:
@@ -856,6 +870,17 @@ def change_in_value(a: Numbers, b: Numbers) -> Change:
     return Change(f"{_arrow(d)} {inr(abs(d))}", "down" if d < 0 else "up", "good" if d < 0 else "bad")
 
 
+NEGLIGIBLE_QTY = Decimal("0.0005")
+
+
+def change_in_units(a: Numbers, b: Numbers) -> Change:
+    """Category 'change in units': abs(B difference qty) - abs(A difference qty); lower is better."""
+    d = abs(b.diff_qty) - abs(a.diff_qty)
+    if abs(d) < NEGLIGIBLE_QTY:
+        return Change("No change", "none", "neutral")
+    return Change(f"{_arrow(d)} {qty(abs(d))} units", "down" if d < 0 else "up", "good" if d < 0 else "bad")
+
+
 @dataclass
 class SheetCategory:
     """One row of the sign-off sheet's category table."""
@@ -863,14 +888,16 @@ class SheetCategory:
     numbers: Numbers
     previous: Numbers | None = None
     change: Change | None = None
+    change_units: Change | None = None
     is_other: bool = False
+    is_total: bool = False
 
     @property
     def name(self):
         return self.numbers.category
 
 
-def sheet_categories(lines, previous_lines=None, max_rows: int = 26, keep: int = 24) -> list[SheetCategory]:
+def sheet_categories(lines, previous_lines=None, max_rows: int = 20, keep: int = 19) -> list[SheetCategory]:
     """Category rows for a one-page sheet.
 
     Up to max_rows categories are all shown. Beyond that, the `keep` categories with the largest
@@ -899,7 +926,19 @@ def sheet_categories(lines, previous_lines=None, max_rows: int = 26, keep: int =
                 r.previous = prev.get(r.name)
             if r.previous is not None:
                 r.change = change_in_value(r.previous, r.numbers)
+                r.change_units = change_in_units(r.previous, r.numbers)
     return rows
+
+
+def sheet_total(lines, previous_totals: Numbers | None = None) -> SheetCategory:
+    """Closing "Total" row: the sum of every category (so it equals the audit totals)."""
+    total = audit_totals(lines)
+    total.category = "Total"
+    row = SheetCategory(total, previous_totals, is_total=True)
+    if previous_totals is not None:
+        row.change = change_in_value(previous_totals, total)
+        row.change_units = change_in_units(previous_totals, total)
+    return row
 
 
 def comparison_sentences(a: AuditData, b: AuditData, rows, th: Thresholds, same_store: bool) -> list[str]:

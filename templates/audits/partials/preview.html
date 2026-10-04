@@ -18,7 +18,7 @@
 </div>
 {% if preview.comparison %}
 <h3 style="margin-top:12px">Compared with last audit</h3>
-{% include "partials/comparison.html" with cmp=preview.comparison a_label="Last audit" b_label="This audit" %}
+{% include "partials/comparison.html" with cmp=preview.comparison a_label="Last" b_label="Now" %}
 {% elif not preview.previous %}
 <p class="notice" style="margin-top:12px" data-first-audit>First audit for this store, so there is no earlier audit to compare.</p>
 {% endif %}

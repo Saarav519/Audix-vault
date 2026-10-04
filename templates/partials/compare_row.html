@@ -1,0 +1,9 @@
+{% load audix %}<tr{% if total %} class="total"{% endif %}><td class="cat">{{ r.category }}</td>
+{% for n in r.a|pair:r.b %}<td class="num gs">{{ n.stock_qty|qty }}</td><td class="num">{{ n.stock_value|inr }}</td>
+<td class="num gs">{{ n.total_physical_qty|qty }}</td><td class="num">{{ n.total_physical_value|inr }}</td>
+<td class="num gs {{ n.diff_value|money_class }}">{{ n.diff_qty|qty_signed }}</td><td class="num {{ n.diff_value|money_class }}">{{ n.diff_value|inr }}</td>
+<td class="num">{{ n.var_pct|pct }}</td>{% endfor %}
+<td class="num gs tone-{{ r.change_value.tone }}">{{ r.change_value.text }}</td><td class="num tone-{{ r.change_units.tone }}">{{ r.change_units.text }}</td>
+<td class="num gs">{{ r.b.damage_qty|qty }}</td><td class="num">{{ r.b.damage_value|inr }}<span class="sub">{{ r.b.damage_pct|pct }}</span></td>
+<td class="num gs">{{ r.b.wbc_qty|qty }}</td><td class="num">{{ r.b.wbc_value|inr }}<span class="sub">{{ r.b.wbc_pct|pct }}</span></td>
+<td class="gs">{% if r.verdict %}{% status_pill r.verdict r.verdict_tone %}{% endif %}</td></tr>

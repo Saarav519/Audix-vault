@@ -8,15 +8,14 @@
 <p class="muted small" style="margin-top:6px">Lower is better for variance, damage and WBC. ▼ went down, ▲ went up. Percentages are of stock value unless they say sale value.</p>
 {% if cmp.categories %}
 <h3 style="margin-top:14px">Category by category</h3>
-<div class="table-wrap"><table class="table">
-<thead><tr><th>Category</th><th class="num">{{ a_label }} stock value</th><th class="num">{{ b_label }} stock value</th><th class="num">{{ a_label }} difference</th><th class="num">{{ a_label }} var %</th><th class="num">{{ b_label }} difference</th><th class="num">{{ b_label }} var %</th><th class="num">Change in value</th><th class="num">{{ b_label }} damage</th><th class="num">{{ b_label }} WBC</th><th>Verdict</th></tr></thead>
-<tbody>{% for r in cmp.categories %}<tr>
-<td>{{ r.category }}</td><td class="num">{{ r.a.stock_value|inr }}</td><td class="num">{{ r.b.stock_value|inr }}</td>
-<td class="num {{ r.a.diff_value|money_class }}">{{ r.a.diff_value|inr }}</td><td class="num">{{ r.a.var_pct|pct }}</td>
-<td class="num {{ r.b.diff_value|money_class }}">{{ r.b.diff_value|inr }}</td><td class="num">{{ r.b.var_pct|pct }}</td>
-<td class="num tone-{{ r.change_value.tone }}">{{ r.change_value.text }}</td>
-<td class="num">{{ r.b.damage_value|inr }}<span class="sub">{{ r.b.damage_pct|pct }}</span></td>
-<td class="num">{{ r.b.wbc_value|inr }}<span class="sub">{{ r.b.wbc_pct|pct }}</span></td>
-<td>{% status_pill r.verdict r.verdict_tone %}</td></tr>{% endfor %}</tbody>
+<p class="muted small" style="margin:0 0 6px">Quantity and value, amounts in rupees. Total physical = Physical + Damage + WBC.</p>
+<div class="table-wrap"><table class="table qv" data-testid="compare-categories">
+<thead>
+<tr><th rowspan="3" class="cat">Category</th><th colspan="7" class="grp">{{ a_label }}</th><th colspan="7" class="grp">{{ b_label }}</th><th colspan="2" rowspan="2" class="grp">Change</th><th colspan="2" rowspan="2" class="grp">{{ b_label }} damage</th><th colspan="2" rowspan="2" class="grp">{{ b_label }} WBC</th><th rowspan="3" class="gs">Verdict</th></tr>
+<tr>{% for side in "ab" %}<th colspan="2" class="grp">Stock</th><th colspan="2" class="grp">Total physical</th><th colspan="2" class="grp">Difference</th><th rowspan="2" class="num">Var %</th>{% endfor %}</tr>
+<tr>{% for side in "ab" %}{% for g in "123" %}<th class="num gs">Qty</th><th class="num">Value</th>{% endfor %}{% endfor %}<th class="num gs">Value</th><th class="num">Units</th><th class="num gs">Qty</th><th class="num">Value</th><th class="num gs">Qty</th><th class="num">Value</th></tr>
+</thead>
+<tbody>{% for r in cmp.categories %}{% include "partials/compare_row.html" %}{% endfor %}</tbody>
+<tfoot>{% include "partials/compare_row.html" with r=cmp.category_total total=True %}</tfoot>
 </table></div>
 {% endif %}
