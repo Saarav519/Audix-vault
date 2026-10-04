@@ -835,12 +835,7 @@ def compare(a: AuditData, b: AuditData, th: Thresholds | None = None) -> Compari
         la = a.lines.get(name)
         if la is None:
             continue
-        d = abs(lb.diff_value) - abs(la.diff_value)
-        if abs(d) < NEGLIGIBLE_MONEY:
-            ch = Change("No change", "none", "neutral")
-        else:
-            ch = Change(f"{_arrow(d)} {inr(abs(d))}", "down" if d < 0 else "up", "good" if d < 0 else "bad")
-        rows.append(CategoryRow(name, la, lb, ch, verdict(la.var_pct, lb.var_pct, th)))
+        rows.append(CategoryRow(name, la, lb, change_in_value(la, lb), verdict(la.var_pct, lb.var_pct, th)))
 
     sentences = comparison_sentences(a, b, rows, th, same_store)
 
@@ -851,6 +846,60 @@ def compare(a: AuditData, b: AuditData, th: Thresholds | None = None) -> Compari
                 followups.append(FollowUpItem(o, followup_status(o, a, b, th)))
 
     return Comparison(a, b, same_store, overall, rows, sentences, followups, improvement_points(a, b, th), any_sale)
+
+
+def change_in_value(a: Numbers, b: Numbers) -> Change:
+    """Category 'change in value': abs(B difference) - abs(A difference); lower is better."""
+    d = abs(b.diff_value) - abs(a.diff_value)
+    if abs(d) < NEGLIGIBLE_MONEY:
+        return Change("No change", "none", "neutral")
+    return Change(f"{_arrow(d)} {inr(abs(d))}", "down" if d < 0 else "up", "good" if d < 0 else "bad")
+
+
+@dataclass
+class SheetCategory:
+    """One row of the sign-off sheet's category table."""
+
+    numbers: Numbers
+    previous: Numbers | None = None
+    change: Change | None = None
+    is_other: bool = False
+
+    @property
+    def name(self):
+        return self.numbers.category
+
+
+def sheet_categories(lines, previous_lines=None, max_rows: int = 26, keep: int = 24) -> list[SheetCategory]:
+    """Category rows for a one-page sheet.
+
+    Up to max_rows categories are all shown. Beyond that, the `keep` categories with the largest
+    shortage are shown (in their normal order) plus one "Other (N more)" row that sums the rest,
+    and sums the same categories of the previous audit for the change column.
+    """
+    lines = list(lines)
+    prev = previous_lines
+    if len(lines) > max_rows:
+        worst = {id(n) for n in sorted(lines, key=lambda n: n.diff_value)[:keep]}
+        shown = [n for n in lines if id(n) in worst]
+        rest = [n for n in lines if id(n) not in worst]
+        other = audit_totals(rest)
+        other.category = f"Other ({len(rest)} more)"
+        prev_other = None
+        if prev is not None:
+            prev_rest = [prev[n.category] for n in rest if n.category in prev]
+            if prev_rest:
+                prev_other = audit_totals(prev_rest)
+        rows = [SheetCategory(n) for n in shown] + [SheetCategory(other, prev_other, is_other=True)]
+    else:
+        rows = [SheetCategory(n) for n in lines]
+    if prev is not None:
+        for r in rows:
+            if not r.is_other:
+                r.previous = prev.get(r.name)
+            if r.previous is not None:
+                r.change = change_in_value(r.previous, r.numbers)
+    return rows
 
 
 def comparison_sentences(a: AuditData, b: AuditData, rows, th: Thresholds, same_store: bool) -> list[str]:

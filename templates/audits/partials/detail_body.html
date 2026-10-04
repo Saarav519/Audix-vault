@@ -10,6 +10,7 @@
     {% endif %}
   </div>
   <div class="row no-print">
+    <a class="btn" href="{% url 'audits:signoff_sheet' audit.pk %}">{% icon "download" %} Download sign-off sheet (PDF)</a>
     {% if not client_view %}
       {% if audit.is_draft or user.is_admin %}<a class="btn" href="{% url 'audits:edit' audit.pk %}">Edit</a>{% endif %}
     {% endif %}

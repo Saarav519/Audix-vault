@@ -19,4 +19,5 @@ urlpatterns = [
     path("audits/<uuid:pk>/files/<uuid:file_id>/preview/", detail_views.file_preview, name="preview_file"),
     path("audits/<uuid:pk>/files/<uuid:file_id>/thumb/", detail_views.file_thumb, name="thumb"),
     path("audits/<uuid:pk>/zip/", detail_views.audit_zip, name="zip"),
+    path("audits/<uuid:pk>/signoff-sheet/", detail_views.signoff_sheet, name="signoff_sheet"),
 ]

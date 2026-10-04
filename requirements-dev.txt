@@ -4,4 +4,5 @@ pytest-django==4.14.0
 factory-boy==3.3.3
 moto[s3]==5.2.3
 ruff==0.16.10
+pypdf==6.19.0
 pip-audit

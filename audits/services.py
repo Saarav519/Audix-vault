@@ -43,6 +43,14 @@ def find_previous(client_id, store_id, series, audit_date, created_at=None, excl
     return qs.select_related("store").order_by("-audit_date", "-created_at").first()
 
 
+def audit_previous(audit):
+    """The previous audit used everywhere for comparisons: the stored link for a published audit,
+    the audit it will link to once published for a draft. None means a first audit."""
+    if audit.is_published:
+        return audit.previous_audit
+    return previous_for(audit)
+
+
 def previous_for(audit):
     return find_previous(audit.client_id, audit.store_id, audit.series, audit.audit_date,
                          audit.created_at, audit.pk)

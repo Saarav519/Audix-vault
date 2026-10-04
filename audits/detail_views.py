@@ -48,7 +48,7 @@ def is_client_view(request) -> bool:
 def detail_context(request, audit: Audit) -> dict:
     client_view = is_client_view(request)
     th = audit.client.thresholds()
-    previous = audit.previous_audit if audit.is_published else services.previous_for(audit)
+    previous = services.audit_previous(audit)
     if previous is not None and client_view and not viewable_audits(request).filter(pk=previous.pk).exists():
         previous = None
     comparison = services.comparison_for(previous, audit) if previous else None
@@ -96,6 +96,27 @@ def audit_detail(request, pk):
     if request.GET.get("panel") == "1":
         return render(request, "audits/partials/detail_body.html", ctx)
     return render(request, "audits/detail.html", ctx)
+
+
+@never_cache
+@login_required
+def signoff_sheet(request, pk):
+    """One-page sign-off sheet PDF. Staff: drafts and published; clients: their own published audits."""
+    from django.conf import settings as dj_settings
+    from django.urls import reverse
+
+    from reports import signoff
+
+    audit = get_viewable_audit(request, pk)
+    path = reverse("audits:detail", args=[audit.pk])
+    portal_url = f"{dj_settings.PORTAL_BASE_URL}{path}" if dj_settings.PORTAL_BASE_URL else request.build_absolute_uri(path)
+    data = signoff.signoff_pdf(audit, portal_url)
+    log(request, ActionType.EXPORT, "Downloaded sign-off sheet", detail=audit.reference, audit=audit,
+        client=audit.client)
+    resp = HttpResponse(data, content_type="application/pdf")
+    resp["Content-Disposition"] = f'attachment; filename="{signoff.filename(audit)}"'
+    resp["Cache-Control"] = "private, no-store"
+    return resp
 
 
 # ---------------------------------------------------------------- downloads

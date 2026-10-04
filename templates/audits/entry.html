@@ -8,7 +8,11 @@
       {% if audit %}{% if audit.is_published %}{% status_pill "Published" "good" %}{% else %}{% status_pill "Draft (clients cannot see it)" "neutral" %}{% endif %}{% if audit.edited_at %} <span class="tag">Edited {{ audit.edited_at|fdate }}</span>{% endif %}
       {% else %}<a href="{% url 'audits:new' %}">Change client</a>{% endif %}</p>
   </div>
-  {% if audit %}<div class="row"><a class="btn" href="{% url 'audits:detail' audit.pk %}">{% icon "eye" %} Open audit</a></div>{% endif %}
+  <div class="row">
+    {% if audit %}<a class="btn" href="{% url 'audits:signoff_sheet' audit.pk %}">{% icon "download" %} Download sign-off sheet (PDF)</a>
+    <a class="btn" href="{% url 'audits:detail' audit.pk %}">{% icon "eye" %} Open audit</a>
+    {% else %}<button class="btn" type="button" disabled title="Save the draft first">{% icon "download" %} Download sign-off sheet (PDF)</button>{% endif %}
+  </div>
 </div>
 
 {% if state.errors or form.errors %}
