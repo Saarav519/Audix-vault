@@ -1,0 +1,23 @@
+{% extends "base.html" %}{% load audix %}
+{% block title %}Audits{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Audits</h1><p>Drafts and published audits for every client.</p></div><a class="btn btn-primary" href="{% url 'audits:new' %}">{% icon "plus" %} Add audit</a></div>
+<div class="card">
+<form class="filters" method="get" style="margin-bottom:12px">
+  <div class="field"><label for="f-client">Client</label><select id="f-client" name="client" data-autosubmit><option value="">All clients</option>{% for c in clients %}<option value="{{ c.pk }}" {% if f.client == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="f-status">Status</label><select id="f-status" name="status" data-autosubmit><option value="">Drafts and published</option><option value="draft" {% if f.status == "draft" %}selected{% endif %}>Drafts</option><option value="published" {% if f.status == "published" %}selected{% endif %}>Published</option></select></div>
+  <div class="field"><label for="f-q">Search</label><input id="f-q" type="search" name="q" value="{{ f.q }}" placeholder="Reference, store, client"></div>
+  <button class="btn" type="submit">Filter</button>
+</form>
+<div class="table-wrap"><table class="table">
+<thead><tr><th>Date</th><th>Reference</th><th>Client</th><th>Store</th><th>Type</th><th class="num">Difference</th><th class="num">Var %</th><th>Status</th><th>Files</th><th></th></tr></thead>
+<tbody>{% for a in page %}
+<tr class="clickable" data-href="{% url 'audits:detail' a.pk %}"><td class="nowrap">{{ a.audit_date|fdate }}</td><td><a href="{% url 'audits:detail' a.pk %}" data-drawer>{{ a.reference }}</a></td><td>{{ a.client.name }}</td><td>{{ a.store.code }} · {{ a.store.name }}</td><td>{{ a.get_audit_type_display }}</td>
+<td class="num {{ a.diff_value|money_class }}">{{ a.diff_value|inr }}</td><td class="num">{{ a.var_pct_stock|pct }}</td>
+<td>{% if a.is_draft %}{% status_pill "Draft" "neutral" %}{% else %}{% status_pill a.status_label %}{% endif %}</td>
+<td class="small">{% if a.signoff_count %}Signoff ✓{% else %}<span class="tone-warn">No signoff</span>{% endif %} · {{ a.photo_count }} photo{{ a.photo_count|pluralize }}</td>
+<td>{% if a.is_draft or user.is_admin %}<a class="btn btn-sm" href="{% url 'audits:edit' a.pk %}">Edit</a>{% endif %}</td></tr>
+{% empty %}<tr><td colspan="10" class="empty">No audits match.</td></tr>{% endfor %}</tbody></table></div>
+{% include "partials/pager.html" %}
+</div>
+{% endblock %}

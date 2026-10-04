@@ -1,0 +1,17 @@
+{% load audix %}<section id="step-followup" class="card step"{% if oob %} hx-swap-oob="true"{% endif %} {% if not preview.followups %}hidden{% endif %} aria-labelledby="h-fu">
+  <div class="card-head"><h2 id="h-fu"><span class="pill plain neutral">Step 5</span> Follow-up on last audit</h2></div>
+  {% if preview.previous %}<p class="card-sub">Recommendations from {{ preview.previous.reference }} ({{ preview.previous.audit_date|fdate }}). The status is suggested from this audit's numbers; change it if needed.</p>{% endif %}
+  {% for f in preview.followups %}
+  <div class="obs-card">
+    <div class="row between"><strong>{{ f.obs.category_label }} · {{ f.obs.get_kind_display }}</strong>{% if f.suggested %}<span class="muted small">Suggested: {% if f.suggested == "done" %}Done{% elif f.suggested == "not_done" %}Not done{% else %}In progress{% endif %}</span>{% endif %}</div>
+    <p class="small" style="margin:6px 0">{{ f.obs.recommendation }}</p>
+    <div class="form-grid">
+      <div class="field"><label for="fu-{{ f.key }}-status">Status</label><select id="fu-{{ f.key }}-status" name="fu-{{ f.key }}-status">
+        <option value="done" {% if f.status == "done" %}selected{% endif %}>Done</option>
+        <option value="in_progress" {% if f.status == "in_progress" %}selected{% endif %}>In progress</option>
+        <option value="not_done" {% if f.status == "not_done" %}selected{% endif %}>Not done</option></select></div>
+      <div class="field"><label for="fu-{{ f.key }}-note">Note</label><input id="fu-{{ f.key }}-note" name="fu-{{ f.key }}-note" value="{{ f.note }}" maxlength="1000"></div>
+    </div>
+  </div>
+  {% endfor %}
+</section>

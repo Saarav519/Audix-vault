@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Add audit{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Add audit</h1><p>Choose the client first.</p></div></div>
+<form method="get" class="card" style="max-width:520px"><div class="field"><label for="client">Client</label>
+<select id="client" name="client" required><option value="">Choose a client</option>{% for c in clients %}<option value="{{ c.pk }}">{{ c.name }}</option>{% endfor %}</select></div>
+<button class="btn btn-primary" type="submit">Continue</button></form>
+{% endblock %}

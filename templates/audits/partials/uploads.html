@@ -1,0 +1,17 @@
+{% load audix %}
+<div class="grid grid-2">
+{% for kind, label, help, multiple in file_kinds %}
+<div class="upload-zone" data-upload-zone data-kind="{{ kind }}" data-presign="{% url 'audits:presign' audit.pk %}" data-confirm="{% url 'audits:confirm' audit.pk %}">
+  <div class="row between"><strong>{{ label }}</strong>
+  <label class="btn btn-sm" style="margin:0">{% icon "upload" %} Choose file{% if multiple %}s{% endif %}<input class="sr-only" type="file" data-upload-input {% if multiple %}multiple{% endif %} accept="{% if kind == 'photo' %}.jpg,.jpeg,.png,.webp,.heic{% elif kind == 'audit_excel' or kind == 'variance_report' %}.xlsx,.xls,.csv{% else %}.pdf,.jpg,.jpeg,.png{% endif %}"></label></div>
+  <p class="muted small" style="margin:4px 0">{{ help }}</p>
+  <ul class="file-list">
+    {% for f in files %}{% if f.kind == kind %}<li><span class="small">{{ f.original_name }} <span class="muted">({{ f.size_bytes|filesize }})</span></span>
+      <span class="row"><a class="btn btn-sm" href="{% url 'audits:download' audit.pk f.pk %}">Download</a>
+      {% if not is_published or user.is_admin %}<button class="btn btn-sm btn-danger" type="submit" form="del-{{ f.pk }}">Remove</button>{% endif %}</span></li>{% endif %}{% endfor %}
+  </ul>
+  <ul class="file-list" data-upload-list></ul>
+  <p class="small muted" data-reload-note hidden>Uploaded. <a href="">Reload</a> to see the file list.</p>
+</div>
+{% endfor %}
+</div>

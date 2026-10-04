@@ -1,0 +1,15 @@
+{% extends "emails/_layout.html" %}{% load audix %}
+{% block body %}
+<p>Dear {{ client.name }},</p>
+<p>A new audit has been published in Audix Vault.</p>
+<table role="presentation" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-size:14px;width:100%">
+<tr><td style="color:#5A6556">Store</td><td><strong>{{ audit.store.name }}{% if audit.store.city %}, {{ audit.store.city }}{% endif %}</strong> ({{ audit.store.code }})</td></tr>
+<tr><td style="color:#5A6556">Audit date</td><td>{{ audit.audit_date|fdate }}</td></tr>
+<tr><td style="color:#5A6556">Audit type</td><td>{{ audit.get_audit_type_display }}</td></tr>
+<tr><td style="color:#5A6556">Reference</td><td>{{ audit.reference }}</td></tr>
+<tr><td style="color:#5A6556">Variance</td><td>{{ audit.diff_value|inr }} ({{ audit.var_pct_stock|pct }} of stock value{% if audit.var_pct_sale is not None %}, {{ audit.var_pct_sale|pct }} of sale value{% endif %}) · {{ audit.status_label }}</td></tr>
+</table>
+<p style="margin-top:16px">{{ audit.remark }}</p>
+<p><a href="{{ link }}" style="display:inline-block;background:#B9E10C;color:#12180F;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold">Sign in to Audix Vault</a></p>
+<p style="font-size:13px;color:#5A6556">The signoff copy, photographs and reports are available after you sign in. Files are never sent by email.</p>
+{% endblock %}

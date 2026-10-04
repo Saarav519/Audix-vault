@@ -1,0 +1,19 @@
+{% load audix %}Dear {{ client.name }},
+
+A new audit has been published in Audix Vault.
+
+Store: {{ audit.store.name }}{% if audit.store.city %}, {{ audit.store.city }}{% endif %} ({{ audit.store.code }})
+Audit date: {{ audit.audit_date|fdate }}
+Audit type: {{ audit.get_audit_type_display }}
+Reference: {{ audit.reference }}
+Variance: {{ audit.diff_value|inr }} ({{ audit.var_pct_stock|pct }} of stock value{% if audit.var_pct_sale is not None %}, {{ audit.var_pct_sale|pct }} of sale value{% endif %}), {{ audit.status_label }}
+
+{{ audit.remark }}
+
+Sign in: {{ link }}
+The signoff copy, photographs and reports are available after you sign in. Files are never sent by email.
+
+Regards,
+Audix Solutions & Co
+Where Audits Meet Exceptionalism
+Associated with Vikas Kshitij & Associates, Chartered Accountants

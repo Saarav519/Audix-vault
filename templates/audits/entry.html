@@ -1,0 +1,114 @@
+{% extends "base.html" %}{% load audix static %}
+{% block title %}{% if audit %}Edit {{ audit.reference }}{% else %}Add audit{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{% if audit %}Edit {{ audit.reference }}{% else %}Add audit{% endif %}</h1>
+    <p>{{ client.name }} ·
+      {% if audit %}{% if audit.is_published %}{% status_pill "Published" "good" %}{% else %}{% status_pill "Draft (clients cannot see it)" "neutral" %}{% endif %}{% if audit.edited_at %} <span class="tag">Edited {{ audit.edited_at|fdate }}</span>{% endif %}
+      {% else %}<a href="{% url 'audits:new' %}">Change client</a>{% endif %}</p>
+  </div>
+  {% if audit %}<div class="row"><a class="btn" href="{% url 'audits:detail' audit.pk %}">{% icon "eye" %} Open audit</a></div>{% endif %}
+</div>
+
+{% if state.errors or form.errors %}
+<ul class="messages" role="alert">{% for e in state.errors %}<li class="error">{{ e }}</li>{% endfor %}{% for field in form %}{% for e in field.errors %}<li class="error">{{ field.label }}: {{ e }}</li>{% endfor %}{% endfor %}{% for e in form.non_field_errors %}<li class="error">{{ e }}</li>{% endfor %}</ul>
+{% endif %}
+
+<form id="audit-form" method="post" novalidate data-entry-form>
+{% csrf_token %}
+<input type="hidden" name="client" value="{{ client.pk }}">
+<input type="hidden" name="audit" value="{{ audit.pk|default:'' }}">
+<input type="hidden" id="prev-shown" name="prev_shown" value="{{ preview.previous.pk|default:'' }}">
+<input type="hidden" id="next-index" name="next_index" value="{{ next_index }}">
+
+<div class="stack">
+<section class="card step" aria-labelledby="h-details">
+  <div class="card-head"><h2 id="h-details"><span class="pill plain neutral">Step 1</span> Details</h2></div>
+  <div class="form-grid">
+    {% include "partials/field.html" with field=form.store %}
+    {% include "partials/field.html" with field=form.audit_date %}
+    {% include "partials/field.html" with field=form.audit_type %}
+    {% include "partials/field.html" with field=form.shift %}
+  </div>
+</section>
+
+<section class="card step" aria-labelledby="h-summary">
+  <div class="card-head"><h2 id="h-summary"><span class="pill plain neutral">Step 2</span> Category-wise summary</h2>
+    <span class="muted small">Tip: copy a block of cells in Excel and paste it into the first cell.</span></div>
+  <div class="field" style="max-width:420px">
+    <label for="id_sale_value">Sale value (₹) <span class="muted small">(optional)</span></label>
+    {{ form.sale_value }}
+    <span class="help" id="sale-hint">{{ preview.sale_hint }}</span>
+  </div>
+  <div class="table-wrap">
+  <table class="entry-grid" data-grid>
+    <thead><tr><th scope="col">Category</th><th>Stock qty</th><th>Stock value</th><th>Physical qty</th><th>Physical value</th><th>Damage qty</th><th>Damage value</th><th>WBC qty</th><th>WBC value</th><th>Total physical qty</th><th>Total physical value</th><th>Difference qty</th><th>Difference value</th><th>Var %</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+    <tr class="{% if not r.included %}removed{% endif %}" data-row="{{ r.id }}">
+      <td><div class="row between" style="flex-wrap:nowrap"><span>{{ r.category.name }}</span>
+        <input type="hidden" name="inc-{{ r.id }}" value="{% if r.included %}1{% else %}0{% endif %}" data-include>
+        <button class="btn btn-sm" type="button" data-toggle-row aria-label="{% if r.included %}Remove{% else %}Add back{% endif %} {{ r.category.name }}">{% if r.included %}Remove{% else %}Add back{% endif %}</button></div></td>
+      {% for f in fields %}<td><input type="text" inputmode="decimal" name="l-{{ r.id }}-{{ f }}" value="{{ r.values|get_item:f|default:'' }}" aria-label="{{ r.category.name }} {{ f|cut:'_' }}" autocomplete="off" data-cell></td>{% endfor %}
+      <td class="out"><span id="o-{{ r.id }}-tq">—</span></td><td class="out"><span id="o-{{ r.id }}-tv">—</span></td>
+      <td class="out"><span id="o-{{ r.id }}-dq">—</span></td><td class="out"><span id="o-{{ r.id }}-dv">—</span></td>
+      <td class="out"><span id="o-{{ r.id }}-vp">—</span></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot><tr><td>Store total</td>
+      <td><span id="o-tot-sq">—</span></td><td><span id="o-tot-sv">—</span></td><td><span id="o-tot-pq">—</span></td><td><span id="o-tot-pv">—</span></td>
+      <td><span id="o-tot-mq">—</span></td><td><span id="o-tot-mv">—</span></td><td><span id="o-tot-wq">—</span></td><td><span id="o-tot-wv">—</span></td>
+      <td><span id="o-tot-tq">—</span></td><td><span id="o-tot-tv">—</span></td><td><span id="o-tot-dq">—</span></td><td><span id="o-tot-dv">—</span></td><td><span id="o-tot-vp">—</span></td></tr></tfoot>
+  </table>
+  </div>
+</section>
+
+<section class="card step" aria-labelledby="h-result">
+  <div class="card-head"><h2 id="h-result"><span class="pill plain neutral">Step 3</span> Result and comparison with last audit</h2><span class="muted small" aria-live="polite">Updates as you type</span></div>
+  <div id="preview" hx-post="{% url 'audits:preview' %}" hx-include="#audit-form" hx-trigger="load, input delay:600ms from:#audit-form, change delay:250ms from:#audit-form, audix:recalc from:body" hx-swap="innerHTML">
+    {% include "audits/partials/preview.html" %}
+  </div>
+</section>
+
+<section class="card step" aria-labelledby="h-obs">
+  <div class="card-head"><h2 id="h-obs"><span class="pill plain neutral">Step 4</span> Observations</h2>
+    <div class="row"><button class="btn" type="button" data-add-obs>{% icon "plus" %} Add observation</button>
+    <button class="btn" type="button" data-suggest="{% url 'audits:suggest' %}">Suggest drafts from the numbers</button></div></div>
+  <p class="card-sub">Publishing needs at least one observation with both the observation and a recommendation.</p>
+  <div id="obs-list">{% for i, o in obs_rows %}{% include "audits/partials/obs_card.html" %}{% endfor %}</div>
+  <template id="obs-template">{% with i="__i__" o=None %}{% include "audits/partials/obs_card.html" %}{% endwith %}</template>
+</section>
+
+{% include "audits/partials/followups.html" %}
+
+<section class="card step" aria-labelledby="h-files">
+  <div class="card-head"><h2 id="h-files"><span class="pill plain neutral">Step 6</span> Files and note</h2></div>
+  {% include "partials/field.html" with field=form.note %}
+  <p class="muted small" style="margin-top:-8px">Shown to the client below the auto remark as “Note from Audix”.</p>
+  {% if not storage_ready %}
+    <p class="notice warn">File storage is not configured yet. Everything else works; add the bucket settings to upload files.</p>
+  {% elif not audit %}
+    <p class="notice">Save the draft first, then attach the Audit Excel, variance report, scanned data, signoff copy and photographs here.</p>
+  {% else %}
+    {% include "audits/partials/uploads.html" %}
+  {% endif %}
+</section>
+</div>
+
+<div class="sticky-actions card" style="margin-top:16px">
+  {% if is_published %}
+    <button class="btn btn-primary" type="submit" name="action" value="draft">Save changes</button>
+  {% else %}
+    <button class="btn" type="submit" name="action" value="draft">Save draft</button>
+    {% if can_publish %}<button class="btn btn-primary" type="submit" name="action" value="publish">Publish</button>{% else %}<span class="muted small">An admin will publish this audit.</span>{% endif %}
+  {% endif %}
+</div>
+</form>
+{% for f in files %}<form id="del-{{ f.pk }}" method="post" action="{% url 'audits:file_delete' audit.pk f.pk %}" data-confirm="Remove {{ f.original_name }}?">{% csrf_token %}</form>{% endfor %}
+{% if audit and user.is_admin %}
+<form method="post" action="{% url 'audits:delete' audit.pk %}" data-confirm="Delete {{ audit.reference }}? It will be hidden everywhere." style="margin-top:12px">{% csrf_token %}<button class="btn btn-danger btn-sm" type="submit">Delete audit</button></form>
+{% endif %}
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/entry.js' %}" defer></script>{% endblock %}

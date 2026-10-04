@@ -1,0 +1,22 @@
+{% load audix %}{# expects: cmp, a_label, b_label, show_sentences #}
+{% if show_sentences|default:True %}<div class="sentences">{% for s in cmp.sentences %}<p>{{ s }}</p>{% endfor %}</div>{% endif %}
+<h3 style="margin-top:12px">Overall</h3>
+<div class="table-wrap"><table class="table">
+<thead><tr><th>Measure</th><th class="num">{{ a_label }}</th><th class="num">{{ b_label }}</th><th class="num">Change</th></tr></thead>
+<tbody>{% for r in cmp.overall %}<tr><td>{{ r.label }}</td><td class="num">{{ r.a }}</td><td class="num">{{ r.b }}</td><td class="num tone-{{ r.change.tone }}">{{ r.change.text }}</td></tr>{% endfor %}</tbody>
+</table></div>
+<p class="muted small" style="margin-top:6px">Lower is better for variance, damage and WBC. ▼ went down, ▲ went up. Percentages are of stock value unless they say sale value.</p>
+{% if cmp.categories %}
+<h3 style="margin-top:14px">Category by category</h3>
+<div class="table-wrap"><table class="table">
+<thead><tr><th>Category</th><th class="num">{{ a_label }} stock value</th><th class="num">{{ b_label }} stock value</th><th class="num">{{ a_label }} difference</th><th class="num">{{ a_label }} var %</th><th class="num">{{ b_label }} difference</th><th class="num">{{ b_label }} var %</th><th class="num">Change in value</th><th class="num">{{ b_label }} damage</th><th class="num">{{ b_label }} WBC</th><th>Verdict</th></tr></thead>
+<tbody>{% for r in cmp.categories %}<tr>
+<td>{{ r.category }}</td><td class="num">{{ r.a.stock_value|inr }}</td><td class="num">{{ r.b.stock_value|inr }}</td>
+<td class="num {{ r.a.diff_value|money_class }}">{{ r.a.diff_value|inr }}</td><td class="num">{{ r.a.var_pct|pct }}</td>
+<td class="num {{ r.b.diff_value|money_class }}">{{ r.b.diff_value|inr }}</td><td class="num">{{ r.b.var_pct|pct }}</td>
+<td class="num tone-{{ r.change_value.tone }}">{{ r.change_value.text }}</td>
+<td class="num">{{ r.b.damage_value|inr }}<span class="sub">{{ r.b.damage_pct|pct }}</span></td>
+<td class="num">{{ r.b.wbc_value|inr }}<span class="sub">{{ r.b.wbc_pct|pct }}</span></td>
+<td>{% status_pill r.verdict r.verdict_tone %}</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endif %}

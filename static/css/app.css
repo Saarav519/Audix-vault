@@ -268,9 +268,8 @@ table.table { width: 100%; border-collapse: collapse; font-size: .86rem; }
 .entry-grid td.out { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--muted); padding: 4px 8px; }
 .entry-grid tr.removed td { opacity: .45; } .entry-grid tr.removed input { pointer-events: none; }
 .entry-grid tfoot td { font-weight: 700; background: var(--raise); text-align: right; }
-.steps { counter-reset: step; }
+
 .step { scroll-margin-top: 80px; }
-.step > .card-head h2::before { counter-increment: step; content: counter(step); display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--lime); color: #12180F; font-size: .82rem; margin-right: 8px; vertical-align: 2px; }
 .obs-card { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 10px; background: var(--raise); }
 .checklist { list-style: none; padding: 0; margin: 0; }
 .checklist li { padding: 4px 0; } .checklist li::before { content: "\2715  "; color: var(--bad); font-weight: 700; } .checklist li.ok::before { content: "\2713  "; color: var(--good); }

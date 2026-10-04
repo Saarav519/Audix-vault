@@ -1,0 +1,13 @@
+<div class="obs-card" data-obs-card>
+  <div class="form-grid">
+    <div class="field"><label for="obs-{{ i }}-category">Category</label>
+      <select id="obs-{{ i }}-category" name="obs-{{ i }}-category"><option value="">Whole store</option>{% for c in categories %}<option value="{{ c.pk }}" {% if o.category_id == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="obs-{{ i }}-kind">Kind</label>
+      <select id="obs-{{ i }}-kind" name="obs-{{ i }}-kind">{% for v, l in kinds %}<option value="{{ v }}" {% if o.kind == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="obs-{{ i }}-severity">Severity</label>
+      <select id="obs-{{ i }}-severity" name="obs-{{ i }}-severity">{% for v, l in severities %}<option value="{{ v }}" {% if o.severity == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+  </div>
+  <div class="field"><label for="obs-{{ i }}-text">Observation</label><textarea id="obs-{{ i }}-text" name="obs-{{ i }}-text" rows="2">{{ o.text }}</textarea></div>
+  <div class="field"><label for="obs-{{ i }}-recommendation">Recommendation</label><textarea id="obs-{{ i }}-recommendation" name="obs-{{ i }}-recommendation" rows="2">{{ o.recommendation }}</textarea></div>
+  <label class="check small"><input type="checkbox" name="obs-{{ i }}-delete" value="1" data-obs-remove> Remove this observation</label>
+</div>
