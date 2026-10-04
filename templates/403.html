@@ -1,3 +1,3 @@
 {% extends "base.html" %}
 {% block title %}Not allowed{% endblock %}
-{% block body %}<main class="content" style="max-width:560px;margin:10vh auto"><div class="card"><h1>Not allowed</h1><p class="muted">Your role cannot open this page.</p><a class="btn" href="/">Go to home</a></div></main>{% endblock %}
+{% block body %}<main class="content" style="max-width:560px;margin:10vh auto"><div class="card"><h1>Not allowed</h1><p class="muted">Your role cannot open this page.</p>{% if request.META.HTTP_SEC_FETCH_DEST != "iframe" %}<a class="btn" href="/">Go to home</a>{% endif %}</div></main>{% endblock %}

@@ -1,7 +1,7 @@
 {% load audix %}
 <div class="grid grid-2">
 {% for kind, label, help, multiple in file_kinds %}
-<div class="upload-zone" data-upload-zone data-kind="{{ kind }}" data-presign="{% url 'audits:presign' audit.pk %}" data-confirm="{% url 'audits:confirm' audit.pk %}">
+<div class="upload-zone" data-upload-zone data-kind="{{ kind }}" data-presign="{% url 'audits:presign' audit.pk %}" data-confirm="{% url 'audits:confirm' audit.pk %}" data-csrf="{{ csrf_token }}">
   <div class="row between"><strong>{{ label }}</strong>
   <label class="btn btn-sm" style="margin:0">{% icon "upload" %} Choose file{% if multiple %}s{% endif %}<input class="sr-only" type="file" data-upload-input {% if multiple %}multiple{% endif %} accept="{% if kind == 'photo' %}.jpg,.jpeg,.png,.webp,.heic{% elif kind == 'audit_excel' or kind == 'variance_report' %}.xlsx,.xls,.csv{% else %}.pdf,.jpg,.jpeg,.png{% endif %}"></label></div>
   <p class="muted small" style="margin:4px 0">{{ help }}</p>

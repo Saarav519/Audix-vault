@@ -88,6 +88,14 @@
     {% if forloop.first %}{% if f.is_pdf %}<iframe class="preview-frame" title="Signoff copy preview" src="{% url 'audits:preview_file' audit.pk f.pk %}" loading="lazy"></iframe>{% else %}<img class="preview-img" src="{% url 'audits:preview_file' audit.pk f.pk %}" alt="Signoff copy" loading="lazy">{% endif %}{% endif %}
     <p style="margin:10px 0 0"><a class="btn btn-sm" href="{% url 'audits:download' audit.pk f.pk %}">{% icon "download" %} Download signoff</a> <span class="hint">{{ f.original_name }}, {{ f.size_bytes|filesize }}</span></p>
   {% empty %}<p class="muted">{% if storage_ready %}No signoff copy attached yet.{% else %}File storage is not configured yet.{% endif %}</p>{% endfor %}
+  {% if not client_view and storage_ready %}
+  <div class="upload-zone" style="margin-top:12px" data-upload-zone data-kind="signoff" data-presign="{% url 'audits:presign' audit.pk %}" data-confirm="{% url 'audits:confirm' audit.pk %}" data-csrf="{{ csrf_token }}" data-reload-on-done="{% url 'audits:detail' audit.pk %}" data-testid="signoff-upload">
+    <div class="row between"><strong>{% if signoffs %}Upload another signoff copy{% else %}Upload signoff copy{% endif %}</strong>
+    <label class="btn btn-sm btn-primary" style="margin:0">{% icon "upload" %} Choose file<input class="sr-only" type="file" data-upload-input accept=".pdf,.jpg,.jpeg,.png"></label></div>
+    <p class="muted small" style="margin:4px 0">The scanned, signed sign-off sheet: PDF, JPG or PNG.</p>
+    <ul class="file-list" data-upload-list></ul>
+  </div>
+  {% endif %}
 </section>
 
 <section class="card">

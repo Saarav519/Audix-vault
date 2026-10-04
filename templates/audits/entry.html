@@ -40,6 +40,14 @@
 <section class="card step" aria-labelledby="h-summary">
   <div class="card-head"><h2 id="h-summary"><span class="pill plain neutral">Step 2</span> Category-wise summary</h2>
     <span class="muted small">Tip: copy a block of cells in Excel and paste it into the first cell.</span></div>
+  <div class="excel-fill" data-lines-excel data-upload-url="{% url 'audits:lines_upload' %}">
+    <div class="row" style="flex-wrap:wrap;gap:8px">
+      <a class="btn btn-sm" href="{% url 'audits:lines_template' %}?client={{ client.pk }}{% if audit %}&amp;audit={{ audit.pk }}{% endif %}">{% icon "download" %} Download Excel template</a>
+      <label class="btn btn-sm" style="margin:0">{% icon "upload" %} Upload Excel<input class="sr-only" type="file" accept=".xlsx,.xlsm,.csv" data-lines-file></label>
+      <span class="muted small">Fill the template (same columns as this table) and upload it; the numbers go into the matching categories. Check them, then save.</span>
+    </div>
+    <ul class="messages" data-lines-result hidden style="margin-top:8px"></ul>
+  </div>
   <div class="field" style="max-width:420px">
     <label for="id_sale_value">Sale value (₹) <span class="muted small">(optional)</span></label>
     {{ form.sale_value }}

@@ -1,4 +1,4 @@
-// Add / edit audit: grid helpers, observation cards, paste from Excel, uploads.
+// Add / edit audit: grid helpers, observation cards, paste or upload from Excel.
 (function () {
   "use strict";
   var form = document.querySelector("[data-entry-form]");
@@ -48,6 +48,60 @@
     recalc();
   });
 
+  // ---------- fill the grid from an uploaded Excel file (the server only reads it, nothing is saved)
+  var excel = form.querySelector("[data-lines-excel]");
+  if (excel) {
+    var fileInput = excel.querySelector("[data-lines-file]");
+    var result = excel.querySelector("[data-lines-result]");
+    var show = function (items) {
+      result.innerHTML = "";
+      items.forEach(function (it) {
+        var li = document.createElement("li");
+        li.className = it[0];
+        li.textContent = it[1];
+        result.appendChild(li);
+      });
+      result.hidden = !items.length;
+    };
+    fileInput.addEventListener("change", function (e) {
+      e.stopPropagation();  // not a form change for the live preview
+      var file = fileInput.files[0];
+      if (!file) return;
+      var fd = new FormData();
+      fd.append("file", file);
+      fd.append("client", form.querySelector("[name=client]").value);
+      fd.append("audit", form.querySelector("[name=audit]").value);
+      show([["info", "Reading " + file.name + " ..."]]);
+      fetch(excel.getAttribute("data-upload-url"), { method: "POST", body: fd, credentials: "same-origin",
+        headers: { "X-CSRFToken": form.querySelector("[name=csrfmiddlewaretoken]").value } })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          var filled = 0;
+          Object.keys(j.values || {}).forEach(function (cid) {
+            var tr = form.querySelector('[data-row="' + cid + '"]');
+            if (!tr) return;
+            var vals = j.values[cid];
+            Object.keys(vals).forEach(function (f) {
+              var input = tr.querySelector('[name="l-' + cid + "-" + f + '"]');
+              if (input) input.value = vals[f];
+            });
+            var inc = tr.querySelector("[data-include]");
+            if (inc.value !== "1") tr.querySelector("[data-toggle-row]").click();
+            filled += 1;
+          });
+          var msgs = [];
+          if (filled) msgs.push(["success", "Filled " + filled + " categor" + (filled === 1 ? "y" : "ies") + " from " + file.name + ". Check the numbers, then save."]);
+          (j.errors || []).forEach(function (m) { msgs.push(["error", m]); });
+          if ((j.unknown || []).length) msgs.push(["warning", "Not a category of this client, so skipped: " + j.unknown.join(", ") + "."]);
+          if (filled && (j.missing || []).length) msgs.push(["warning", "Not in the file, left as they were: " + j.missing.join(", ") + "."]);
+          show(msgs);
+          recalc();
+        })
+        .catch(function () { show([["error", "The file could not be uploaded. Please try again."]]); })
+        .finally(function () { fileInput.value = ""; });
+    }, true);
+  }
+
   // ---------- keyboard: Enter moves down the column
   form.addEventListener("keydown", function (e) {
     var cell = e.target.closest("[data-cell]");
@@ -95,73 +149,6 @@
     if (cb) cb.closest("[data-obs-card]").style.opacity = cb.checked ? "0.45" : "";
   });
 
-  // ---------- uploads (presign -> upload straight to storage -> confirm)
-  function uploadOne(zone, file, row) {
-    var bar = row.querySelector(".progress span");
-    var status = row.querySelector("[data-status]");
-    var csrf = form.querySelector("[name=csrfmiddlewaretoken]").value;
-    var body = new FormData();
-    body.append("kind", zone.getAttribute("data-kind"));
-    body.append("name", file.name);
-    body.append("size", String(file.size));
-    body.append("content_type", file.type || "");
-    status.textContent = "Preparing";
-    return fetch(zone.getAttribute("data-presign"), { method: "POST", body: body, credentials: "same-origin", headers: { "X-CSRFToken": csrf } })
-      .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Upload refused"); return j; }); })
-      .then(function (p) {
-        return new Promise(function (resolve, reject) {
-          var fd = new FormData();
-          Object.keys(p.fields || {}).forEach(function (k) { fd.append(k, p.fields[k]); });
-          if (!p.fields || !p.fields["Content-Type"]) fd.append("Content-Type", p.content_type);
-          fd.append(p.file_field || "file", file);
-          var xhr = new XMLHttpRequest();
-          xhr.open(p.method || "POST", p.url);
-          if (p.url.charAt(0) === "/") { xhr.setRequestHeader("X-CSRFToken", csrf); xhr.withCredentials = true; }
-          xhr.upload.onprogress = function (ev) { if (ev.lengthComputable) bar.style.width = Math.round(ev.loaded / ev.total * 100) + "%"; };
-          xhr.onload = function () { if (xhr.status >= 200 && xhr.status < 300) resolve(p); else reject(new Error("Upload failed (" + xhr.status + ")")); };
-          xhr.onerror = function () { reject(new Error("Network error")); };
-          status.textContent = "Uploading";
-          xhr.send(fd);
-        });
-      })
-      .then(function (p) {
-        var c = new FormData();
-        c.append("token", p.token);
-        c.append("caption", "");
-        return fetch(zone.getAttribute("data-confirm"), { method: "POST", body: c, credentials: "same-origin", headers: { "X-CSRFToken": csrf } })
-          .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Could not confirm"); return j; }); });
-      })
-      .then(function () { bar.style.width = "100%"; status.textContent = "Done"; row.classList.add("ok"); })
-      .catch(function (err) {
-        status.textContent = err.message + ". ";
-        var retry = document.createElement("button");
-        retry.type = "button"; retry.className = "btn btn-sm"; retry.textContent = "Retry";
-        retry.addEventListener("click", function () { retry.remove(); bar.style.width = "0"; uploadOne(zone, file, row); });
-        status.appendChild(retry);
-        throw err;
-      });
-  }
-  form.addEventListener("change", function (e) {
-    var input = e.target.closest("[data-upload-input]");
-    if (!input) return;
-    var zone = input.closest("[data-upload-zone]");
-    var list = zone.querySelector("[data-upload-list]");
-    var jobs = Array.prototype.map.call(input.files, function (file) {
-      var row = document.createElement("li");
-      row.innerHTML = '<span class="small"></span><span class="small muted" data-status></span><div class="progress" style="flex-basis:100%"><span></span></div>';
-      row.firstChild.textContent = file.name;
-      list.appendChild(row);
-      return uploadOne(zone, file, row).catch(function () { return null; });
-    });
-    input.value = "";
-    Promise.all(jobs).then(function (res) {
-      if (res.every(function (x) { return x !== null; })) {
-        var note = zone.querySelector("[data-reload-note]");
-        if (note) note.hidden = false;
-      }
-      recalc();
-    });
-  });
 })();
 
 // ---------- add a new store from the Store dropdown (no page reload, nothing entered is lost)

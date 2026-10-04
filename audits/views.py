@@ -301,3 +301,51 @@ def audit_publish(request, pk):
     messages.success(request, f"{audit.reference} is published.")
     return redirect(reverse("audits:detail", args=[audit.pk]))
 
+
+
+def _lines_client(request, data):
+    try:
+        client = get_object_or_404(Client, pk=uuid.UUID(data.get("client", "")))
+    except ValueError:
+        raise Http404
+    audit = None
+    if data.get("audit"):
+        try:
+            audit = Audit.objects.live().filter(pk=uuid.UUID(data["audit"]), client=client).first()
+        except ValueError:
+            audit = None
+    return client, entry.categories_for(client, audit)
+
+
+@staff_required
+def lines_template(request):
+    """Blank Excel template for Step 2 (category-wise summary) of the chosen client."""
+    from django.http import HttpResponse
+    from django.utils.text import slugify
+
+    from audits import lines_excel
+
+    client, categories = _lines_client(request, request.GET)
+    resp = HttpResponse(lines_excel.template_xlsx(client, categories),
+                        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    resp["Content-Disposition"] = f'attachment; filename="audix-category-summary-{slugify(client.slug or client.name)}.xlsx"'
+    resp["Cache-Control"] = "private, no-store"
+    return resp
+
+
+@staff_required
+@require_POST
+def lines_upload(request):
+    """Read a filled template and return the numbers for the grid. Nothing is saved here."""
+    from django.http import JsonResponse
+
+    from audits import lines_excel
+
+    client, categories = _lines_client(request, request.POST)
+    upload = request.FILES.get("file")
+    if upload is None:
+        return JsonResponse({"errors": ["Choose an Excel file first."]}, status=400)
+    res = lines_excel.parse(upload, categories)
+    log(request, ActionType.ADMIN_CHANGE, "Filled category summary from Excel",
+        detail=f"{upload.name}: {len(res.matched)} categories", client=client)
+    return JsonResponse(res.as_json(), status=200 if res.matched else 400)

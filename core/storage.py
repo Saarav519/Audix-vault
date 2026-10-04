@@ -124,6 +124,19 @@ class S3Backend:
     def get(self, key) -> bytes:
         return self.client.get_object(Bucket=self.bucket, Key=key)["Body"].read()
 
+    def exists(self, key) -> bool:
+        """False only when the bucket says the object is not there; other errors count as present."""
+        from botocore.exceptions import ClientError
+
+        try:
+            self.client.head_object(Bucket=self.bucket, Key=key)
+        except ClientError as e:
+            code = str(e.response.get("Error", {}).get("Code", ""))
+            return code not in ("404", "NoSuchKey", "NotFound")
+        except Exception:
+            return True
+        return True
+
     def stream(self, key, chunk=1024 * 256):
         body = self.client.get_object(Bucket=self.bucket, Key=key)["Body"]
         yield from body.iter_chunks(chunk)
@@ -176,6 +189,12 @@ class LocalBackend:
 
     def get(self, key) -> bytes:
         return self._path(key).read_bytes()
+
+    def exists(self, key) -> bool:
+        try:
+            return self._path(key).exists()
+        except ValueError:
+            return False
 
     def stream(self, key, chunk=1024 * 256):
         with open(self._path(key), "rb") as fh:

@@ -1,6 +1,6 @@
 # Status
 
-Honest state of the build against the brief. Test suite: 236 tests (`pytest -q`), `ruff check .` clean, `manage.py check --deploy` shows no errors (one warning left on purpose: HSTS include-subdomains is an owner decision for the final domain), `pip-audit` finds no known vulnerabilities.
+Honest state of the build against the brief. Test suite: 246 tests (`pytest -q`), `ruff check .` clean, `manage.py check --deploy` shows no errors (one warning left on purpose: HSTS include-subdomains is an owner decision for the final domain), `pip-audit` finds no known vulnerabilities.
 
 ## Part B
 
@@ -54,6 +54,8 @@ Honest state of the build against the brief. Test suite: 236 tests (`pytest -q`)
 | Quantity and value in category tables | Done | Detail page, Compare page, Add audit step 3 and the sign-off sheet show quantity and value for Stock, Total physical and Difference (detail page also Physical, Damage and WBC), Var %, change in value and in units, and a closing Total row. Sign-off sheet: single full-width table (two-column mode removed), up to 20 categories then 19 largest shortages plus "Other (N more)", "Difference, units" row in the compare box, units on the Total physical tile and in "At a glance". `reference/signoff/samples/` was not in the repository, so the layout follows the written request. |
 | Categories in only one audit (Compare, step 3) | Done | Every category of either audit is listed ("Only in A" / "Only in B", "—" for the missing side and the changes). Total row = each audit's full totals; "Common categories only" subtotals drive the Total row's changes; note when categories differ. The Compare PDF follows the same rule. |
 | "+" on excess rupees, "1 unit" plurals | Done | Detail page, Compare, step 3, sign-off sheet and Total rows; `units()` helper and `units` filter; editable WBC/damage templates are corrected from "1 units" to "1 unit". |
+| Excel upload for the category-wise summary | Done | Template download and upload in Step 2 (`audits/lines_excel.py`, `audits:lines_template`, `audits:lines_upload`); fills the grid in the browser, nothing stored; staff only; logged. |
+| Signoff upload on the audit page, preview frame fix | Done | Upload card for staff on the audit page (shared `static/js/uploads.js`), newest signoff previewed first; missing stored files show a plain message in the frame; framed 404/403 pages have no "Go to home". |
 | No comparison for a first audit | Done | Detail page and Add/Edit preview show "First audit for this store." and hide the last-audit columns, comparison and follow-up step. Compare page unchanged. |
 
 ## Known gaps and items for the owner

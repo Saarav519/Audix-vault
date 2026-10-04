@@ -78,7 +78,7 @@ def detail_context(request, audit: Audit) -> dict:
     return {
         "audit": audit, "client_view": client_view, "previous": previous, "cmp": comparison, "totals": totals,
         "cat_rows": cat_rows, "cat_total": cat_total, "observations": list(audit.observations.select_related("category")),
-        "followups": followups, "files": by_kind, "signoffs": by_kind[FileKind.SIGNOFF],
+        "followups": followups, "files": by_kind, "signoffs": sorted(by_kind[FileKind.SIGNOFF], key=lambda f: f.uploaded_at, reverse=True),  # newest first
         "photos": by_kind[FileKind.PHOTO],
         "reports": [(k, label, by_kind[k]) for k, label in (
             (FileKind.AUDIT_EXCEL, "Audit Excel"), (FileKind.VARIANCE_REPORT, "Variance report"),
@@ -158,6 +158,11 @@ def file_preview(request, pk, file_id):
     audit, f = _get_file(request, pk, file_id)
     if not f.previewable:
         raise Http404  # reports are download-only
+    backend = storage.get_backend()
+    if backend is None or not backend.exists(f.storage_key):
+        # Shown inside the signoff preview frame: a plain message, never the site's own pages.
+        return render(request, "audits/file_missing.html", {"audit": audit, "file": f,
+                                                            "client_view": is_client_view(request)}, status=404)
     return _issue(request, audit, f, inline=True)
 
 

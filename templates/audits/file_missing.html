@@ -1,0 +1,8 @@
+{% load static %}<!doctype html>
+<html lang="en-IN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>File not available · Audix Vault</title><link rel="stylesheet" href="{% static 'css/app.css' %}"></head>
+<body style="background:var(--surface)"><main style="max-width:520px;margin:32px auto;padding:0 16px" data-file-missing>
+<h2 style="margin:0 0 8px">This file is not available</h2>
+<p class="muted">{{ file.original_name }} is listed for {{ audit.reference }}, but the stored copy could not be found.
+{% if client_view %}Please ask Audix Solutions &amp; Co to upload it again.{% else %}Upload it again from this audit's page; you can remove the old entry on the Edit page.{% endif %}</p>
+</main></body></html>
