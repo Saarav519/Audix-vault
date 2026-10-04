@@ -1,6 +1,6 @@
 # Status
 
-Honest state of the build against the brief. Test suite: 230 tests (`pytest -q`), `ruff check .` clean, `manage.py check --deploy` shows no errors (one warning left on purpose: HSTS include-subdomains is an owner decision for the final domain), `pip-audit` finds no known vulnerabilities.
+Honest state of the build against the brief. Test suite: 236 tests (`pytest -q`), `ruff check .` clean, `manage.py check --deploy` shows no errors (one warning left on purpose: HSTS include-subdomains is an owner decision for the final domain), `pip-audit` finds no known vulnerabilities.
 
 ## Part B
 
@@ -52,6 +52,8 @@ Honest state of the build against the brief. Test suite: 230 tests (`pytest -q`)
 | One-page audit sign-off sheet (PDF) | Done | `reports/signoff.py`, `audits:signoff_sheet`; buttons on the detail and Add/Edit pages; draft watermark for staff; logged as an export. Tested with pypdf for one page, first audit (no "Last audit", "Compared with" or "Change vs"), 13, 20 and 30+ categories, long observations, client isolation and drafts. The `reference/signoff/` design files named in the request were not in the repository, so the layout follows the written request; it can be aligned once those files are added. |
 | Filtered exports and admin Audits filters | Done | Portal and admin exports describe every active filter and the count, contain exactly the filtered rows across pages (5,000 cap stated in the file when hit). Admin Audits page gained Store (after choosing a client), Audit type, Shift, Period and Status filters plus Export Excel and Export PDF for admins and auditors. |
 | Quantity and value in category tables | Done | Detail page, Compare page, Add audit step 3 and the sign-off sheet show quantity and value for Stock, Total physical and Difference (detail page also Physical, Damage and WBC), Var %, change in value and in units, and a closing Total row. Sign-off sheet: single full-width table (two-column mode removed), up to 20 categories then 19 largest shortages plus "Other (N more)", "Difference, units" row in the compare box, units on the Total physical tile and in "At a glance". `reference/signoff/samples/` was not in the repository, so the layout follows the written request. |
+| Categories in only one audit (Compare, step 3) | Done | Every category of either audit is listed ("Only in A" / "Only in B", "—" for the missing side and the changes). Total row = each audit's full totals; "Common categories only" subtotals drive the Total row's changes; note when categories differ. The Compare PDF follows the same rule. |
+| "+" on excess rupees, "1 unit" plurals | Done | Detail page, Compare, step 3, sign-off sheet and Total rows; `units()` helper and `units` filter; editable WBC/damage templates are corrected from "1 units" to "1 unit". |
 | No comparison for a first audit | Done | Detail page and Add/Edit preview show "First audit for this store." and hide the last-audit columns, comparison and follow-up step. Compare page unchanged. |
 
 ## Known gaps and items for the owner

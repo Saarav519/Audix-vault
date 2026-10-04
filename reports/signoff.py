@@ -24,7 +24,7 @@ from reportlab.pdfgen import canvas as pdfcanvas
 from audits import services
 from core import calc
 from core.exports import pdf_fonts
-from core.formatting import fmt_date, inr, pct, plain_pct, qty
+from core.formatting import fmt_date, inr, pct, plain_pct, qty, units
 
 # ---------------------------------------------------------------- design tokens (static/css/app.css, light)
 INK = colors.HexColor("#12180F")
@@ -270,9 +270,9 @@ def draw_kpis(p: Pen, d: SheetData, y):
     if a.var_pct_sale is not None:
         var_sub += f" · {pct(a.var_pct_sale)} of sale value"
     tiles = [
-        ("Stock value", inr(t.stock_value), f"{qty(t.stock_qty)} units", None),
-        ("Total physical value", inr(t.total_physical_value), f"{qty(t.total_physical_qty)} units", None),
-        ("Difference", inr(t.diff_value), f"{qty(t.diff_qty)} units", SHORT if t.diff_value < 0 else (EXCESS if t.diff_value > 0 else INK)),
+        ("Stock value", inr(t.stock_value), units(t.stock_qty), None),
+        ("Total physical value", inr(t.total_physical_value), units(t.total_physical_qty), None),
+        ("Difference", inr(t.diff_value), units(t.diff_qty), SHORT if t.diff_value < 0 else (EXCESS if t.diff_value > 0 else INK)),
         ("Variance % of stock value", pct(a.var_pct_stock), var_sub, None),
     ]
     for i, (label, value, sub, col) in enumerate(tiles):
@@ -384,14 +384,14 @@ def draw_glance(p: Pen, d: SheetData, x, y, w):
     size, value_w = 6.8, w * 0.66
     worst_text = "None"
     if worst:
-        tail = f", {qty(worst.diff_qty, signed=True)} units, {inr(worst.diff_value)} ({pct(worst.var_pct)})"
+        tail = f", {units(worst.diff_qty, signed=True)}, {inr(worst.diff_value, signed=True)} ({pct(worst.var_pct)})"
         name_w = max(value_w - p.width(tail, size, True), 30)
         worst_text = p.fit(worst.category, size, name_w, True) + tail
     rows = [
         ("Largest shortage", worst_text),
-        ("Difference", f"{qty(t.diff_qty, signed=True)} units, {inr(t.diff_value)} ({pct(t.var_pct)})"),
-        ("Damage", f"{qty(t.damage_qty)} units, {inr(t.damage_value)} ({pct(t.damage_pct)})"),
-        ("WBC (Without Barcode)", f"{qty(t.wbc_qty)} units, {inr(t.wbc_value)} ({pct(t.wbc_pct)})"),
+        ("Difference", f"{units(t.diff_qty, signed=True)}, {inr(t.diff_value, signed=True)} ({pct(t.var_pct)})"),
+        ("Damage", f"{units(t.damage_qty)}, {inr(t.damage_value)} ({pct(t.damage_pct)})"),
+        ("WBC (Without Barcode)", f"{units(t.wbc_qty)}, {inr(t.wbc_value)} ({pct(t.wbc_pct)})"),
         (f"Categories above {plain_pct(th.warn_pct)}", f"{len(above)} of {len(d.lines)}"),
         ("Audit type and shift", f"{a.get_audit_type_display()}, {a.get_shift_display()}"),
     ]
@@ -452,7 +452,7 @@ def draw_category_table(p: Pen, d: SheetData, x, top, w, row_h, size):
     def cells(r):
         n = r.numbers
         out = [qty(n.stock_qty), inr(n.stock_value), qty(n.total_physical_qty), inr(n.total_physical_value),
-               qty(n.diff_qty, signed=True), inr(n.diff_value), pct(n.var_pct)]
+               qty(n.diff_qty, signed=True), inr(n.diff_value, signed=True), pct(n.var_pct)]
         if has_prev:
             out.append(r.change.text if r.change else "New")
         return out

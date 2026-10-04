@@ -111,6 +111,13 @@ def qty(value):
 
 
 @register.filter
+def units(value):
+    if value is None or value == "":
+        return "—"
+    return fm.units(value)
+
+
+@register.filter
 def qty_signed(value):
     if value is None or value == "":
         return "—"

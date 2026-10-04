@@ -6,7 +6,7 @@
 <tbody>{% for r in cmp.overall %}<tr><td>{{ r.label }}</td><td class="num">{{ r.a }}</td><td class="num">{{ r.b }}</td><td class="num tone-{{ r.change.tone }}">{{ r.change.text }}</td></tr>{% endfor %}</tbody>
 </table></div>
 <p class="muted small" style="margin-top:6px">Lower is better for variance, damage and WBC. ▼ went down, ▲ went up. Percentages are of stock value unless they say sale value.</p>
-{% if cmp.categories %}
+{% if cmp.table_rows %}
 <h3 style="margin-top:14px">Category by category</h3>
 <p class="muted small" style="margin:0 0 6px">Quantity and value, amounts in rupees. Total physical = Physical + Damage + WBC.</p>
 <div class="table-wrap"><table class="table qv" data-testid="compare-categories">
@@ -15,7 +15,8 @@
 <tr>{% for side in "ab" %}<th colspan="2" class="grp">Stock</th><th colspan="2" class="grp">Total physical</th><th colspan="2" class="grp">Difference</th><th rowspan="2" class="num">Var %</th>{% endfor %}</tr>
 <tr>{% for side in "ab" %}{% for g in "123" %}<th class="num gs">Qty</th><th class="num">Value</th>{% endfor %}{% endfor %}<th class="num gs">Value</th><th class="num">Units</th><th class="num gs">Qty</th><th class="num">Value</th><th class="num gs">Qty</th><th class="num">Value</th></tr>
 </thead>
-<tbody>{% for r in cmp.categories %}{% include "partials/compare_row.html" %}{% endfor %}</tbody>
-<tfoot>{% include "partials/compare_row.html" with r=cmp.category_total total=True %}</tfoot>
+<tbody>{% for r in cmp.table_rows %}{% include "partials/compare_row.html" %}{% endfor %}</tbody>
+<tfoot>{% include "partials/compare_row.html" with r=cmp.category_total total=True %}{% if cmp.one_sided_count %}{% include "partials/compare_row.html" with r=cmp.common_total total=True %}{% endif %}</tfoot>
 </table></div>
+{% if cmp.one_sided_count %}<p class="muted small" style="margin-top:6px" data-testid="one-sided-note">{{ cmp.one_sided_count }} categor{{ cmp.one_sided_count|pluralize:"y is,ies are" }} not in both audits. Totals show every category of each audit; changes compare common categories only.</p>{% endif %}
 {% endif %}

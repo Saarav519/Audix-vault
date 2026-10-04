@@ -18,7 +18,7 @@ from audits.models import Audit, AuditType, Shift
 from clients.models import Client, Store
 from core import calc, charts
 from core.calc import D
-from core.formatting import compact_inr, inr, pct, qty, short_date
+from core.formatting import compact_inr, inr, pct, short_date, units
 from core.permissions import portal_required
 from core.scoping import PortalScope
 from reports import queries
@@ -138,15 +138,15 @@ def dashboard(request):
     vs = previous_text
     kpis = [
         {"label": "Audits completed", "value": str(cur["audits"]), "change": _change(cur["audits"], prev["audits"], cmp=vs)},
-        {"label": "Stock value", "value": compact_inr(cur["stock_value"]), "sub": f"{qty(cur['stock_qty'])} units",
+        {"label": "Stock value", "value": compact_inr(cur["stock_value"]), "sub": units(cur["stock_qty"]),
          "change": _change(cur["stock_value"], prev["stock_value"], cmp=vs)},
         {"label": "Total physical value", "value": compact_inr(cur["total_value"]), "sub": "Physical + damage + WBC",
          "change": _change(cur["total_value"], prev["total_value"], cmp=vs)},
         {"label": "Damage", "value": compact_inr(cur["damage_value"]),
-         "sub": f"{qty(cur['damage_qty'])} units, {pct(cur['damage_pct'])} of stock value",
+         "sub": f"{units(cur['damage_qty'])}, {pct(cur['damage_pct'])} of stock value",
          "change": _change_pts(cur["damage_pct"], prev["damage_pct"], cmp=vs)},
         {"label": "WBC (Without Barcode)", "value": compact_inr(cur["wbc_value"]),
-         "sub": f"{qty(cur['wbc_qty'])} units, {pct(cur['wbc_pct'])} of stock value",
+         "sub": f"{units(cur['wbc_qty'])}, {pct(cur['wbc_pct'])} of stock value",
          "change": _change_pts(cur["wbc_pct"], prev["wbc_pct"], cmp=vs)},
         {"label": "Variance", "value": pct(cur["var_pct"]), "sub": "of stock value" + (
             f"; {cur['sale_text']}" if cur["sale_text"] else ""),

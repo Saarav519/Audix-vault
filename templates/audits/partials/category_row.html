@@ -4,9 +4,9 @@
 <td class="num gs">{{ n.damage_qty|qty }}</td><td class="num">{{ n.damage_value|inr }}</td>
 <td class="num gs">{{ n.wbc_qty|qty }}</td><td class="num">{{ n.wbc_value|inr }}</td>
 <td class="num gs">{{ n.total_physical_qty|qty }}</td><td class="num">{{ n.total_physical_value|inr }}</td>
-<td class="num gs {{ n.diff_value|money_class }}">{{ n.diff_qty|qty_signed }}</td><td class="num {{ n.diff_value|money_class }}">{{ n.diff_value|inr }}</td>
+<td class="num gs {{ n.diff_value|money_class }}">{{ n.diff_qty|qty_signed }}</td><td class="num {{ n.diff_value|money_class }}">{{ n.diff_value|inr_signed }}</td>
 <td class="num">{{ n.var_pct|pct:1 }}</td>
 {% if previous %}{% if prev %}<td class="num gs">{{ prev.stock_qty|qty }}</td><td class="num">{{ prev.stock_value|inr }}</td>
-<td class="num {{ prev.diff_value|money_class }}">{{ prev.diff_qty|qty_signed }}</td><td class="num {{ prev.diff_value|money_class }}">{{ prev.diff_value|inr }}<span class="sub">{{ prev.var_pct|pct:1 }}</span></td>
+<td class="num {{ prev.diff_value|money_class }}">{{ prev.diff_qty|qty_signed }}</td><td class="num {{ prev.diff_value|money_class }}">{{ prev.diff_value|inr_signed }}<span class="sub">{{ prev.var_pct|pct:1 }}</span></td>
 <td class="num gs tone-{{ change.tone }}">{% if change %}{{ change.text }}{% endif %}</td><td class="num tone-{{ change_units.tone }}">{% if change_units %}{{ change_units.text }}{% endif %}</td>
 {% else %}<td class="muted gs" colspan="6">Not in the earlier audit</td>{% endif %}{% endif %}</tr>

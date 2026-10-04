@@ -12,7 +12,7 @@ from activity.models import ActionType
 from audits import services
 from audits.models import Audit
 from core import exports as ex
-from core.formatting import fmt_date, inr, pct
+from core.formatting import fmt_date, inr, pct, qty
 from core.permissions import portal_required
 from reports.aging import build_aging
 from reports.queries import window_totals
@@ -294,16 +294,35 @@ def comparison_pdf(client, a, b, cmp, period_text) -> bytes:
         s.append(ex.paragraph("Overall", "h2"))
         rows = [["Measure", "A", "B", "Change"]] + [[r.label, r.a, r.b, r.change.text] for r in cmp.overall]
         s.append(ex.pdf_table(rows, col_widths=[70 * mm, 55 * mm, 55 * mm, 55 * mm], num_cols=(1, 2, 3)))
-        if cmp.categories:
+        if cmp.table_rows:
             s.append(ex.paragraph("Category by category", "h2"))
             rows = [["Category", "A stock", "B stock", "A difference", "A var %", "B difference", "B var %",
-                     "Change in value", "B damage", "B WBC", "Verdict"]]
-            for r in cmp.categories:
-                rows.append([r.category, inr(r.a.stock_value), inr(r.b.stock_value), inr(r.a.diff_value), pct(r.a.var_pct),
-                             inr(r.b.diff_value), pct(r.b.var_pct), r.change_value.text,
-                             f"{inr(r.b.damage_value)} ({pct(r.b.damage_pct)})", f"{inr(r.b.wbc_value)} ({pct(r.b.wbc_pct)})",
-                             r.verdict])
-            s.append(ex.pdf_table(rows, num_cols=tuple(range(1, 10))))
+                     "Change in value", "Change in units", "B damage", "B WBC", "Verdict"]]
+            dash = "—"
+            for r in cmp.table_rows + [cmp.category_total] + ([cmp.common_total] if cmp.one_sided_count else []):
+                na, nb = r.a, r.b
+                rows.append([
+                    r.category,
+                    f"{qty(na.stock_qty)} / {inr(na.stock_value)}" if na else dash,
+                    f"{qty(nb.stock_qty)} / {inr(nb.stock_value)}" if nb else dash,
+                    f"{qty(na.diff_qty, signed=True)} / {inr(na.diff_value, signed=True)}" if na else dash,
+                    pct(na.var_pct) if na else dash,
+                    f"{qty(nb.diff_qty, signed=True)} / {inr(nb.diff_value, signed=True)}" if nb else dash,
+                    pct(nb.var_pct) if nb else dash,
+                    r.change_value.text if r.change_value else dash,
+                    r.change_units.text if r.change_units else dash,
+                    f"{qty(nb.damage_qty)} / {inr(nb.damage_value)} ({pct(nb.damage_pct)})" if nb else dash,
+                    f"{qty(nb.wbc_qty)} / {inr(nb.wbc_value)} ({pct(nb.wbc_pct)})" if nb else dash,
+                    r.verdict,
+                ])
+            extra = 2 if cmp.one_sided_count else 1
+            s.append(ex.pdf_table(rows, num_cols=tuple(range(1, 11)), footer=extra))
+            s.append(ex.paragraph("Quantity / value, amounts in rupees.", "small"))
+            if cmp.one_sided_count:
+                n = cmp.one_sided_count
+                s.append(ex.paragraph(f"{n} {'category is' if n == 1 else 'categories are'} not in both audits. Totals "
+                                      "show every category of each audit; changes compare common categories only.",
+                                      "small"))
         if cmp.followups:
             s.append(ex.paragraph("Follow-up on A's recommendations", "h2"))
             rows = [["Category", "Recommendation", "Status"]] + [

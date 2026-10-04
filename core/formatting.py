@@ -5,6 +5,7 @@ Pure Python. No Django imports, so it can be used from core.calc and exports.
 
 from __future__ import annotations
 
+import re
 from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
@@ -62,6 +63,20 @@ def qty(value, signed: bool = False) -> str:
     else:
         text = num(v, 3).rstrip("0").rstrip(".")
     return f"+{text}" if signed and v > 0 else text
+
+
+def units(value, signed: bool = False) -> str:
+    """Quantity with its unit word: "1 unit", "2 units", "−1 unit", "+3 units"."""
+    v = round_dec(value, 3)
+    return f"{qty(v, signed)} {'unit' if abs(v) == 1 else 'units'}"
+
+
+_ONE_UNITS = re.compile(r"(?<![\d.,])([+\-−]?1) units\b")
+
+
+def fix_unit_plural(text: str) -> str:
+    """'1 units' -> '1 unit' in text built from editable templates."""
+    return _ONE_UNITS.sub(r"\1 unit", text)
 
 
 def inr(value, decimals: int = 0, signed: bool = False) -> str:

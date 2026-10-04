@@ -2,7 +2,7 @@
 {% if preview.has_lines %}
 <div class="kpis">
   <div class="kpi"><div class="label">Store variance</div><div class="value {{ preview.totals.diff_value|money_class }}">{{ preview.totals.var_pct|pct }}</div><div class="sub">of stock value</div></div>
-  <div class="kpi"><div class="label">{% if preview.totals.is_matched %}Difference{% elif preview.totals.is_shortage %}Shortage{% else %}Excess{% endif %}</div><div class="value {{ preview.totals.diff_value|money_class }}">{{ preview.totals.diff_value|absval|inr }}</div><div class="sub">{{ preview.totals.diff_qty|absval|qty }} units</div></div>
+  <div class="kpi"><div class="label">{% if preview.totals.is_matched %}Difference{% elif preview.totals.is_shortage %}Shortage{% else %}Excess{% endif %}</div><div class="value {{ preview.totals.diff_value|money_class }}">{{ preview.totals.diff_value|absval|inr }}</div><div class="sub">{{ preview.totals.diff_qty|absval|units }}</div></div>
   <div class="kpi"><div class="label">Of sale value</div><div class="value">{% if preview.var_sale is not None %}{{ preview.var_sale|pct }}{% else %}—{% endif %}</div><div class="sub">{% if preview.var_sale is not None %}of sale value{% else %}No sale value given{% endif %}</div></div>
   <div class="kpi"><div class="label">Status</div><div class="value">{% status_pill preview.status %}</div><div class="sub">Healthy up to {{ preview.thresholds.good_pct|plain_pct }}, Watch up to {{ preview.thresholds.warn_pct|plain_pct }}</div></div>
 </div>

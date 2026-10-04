@@ -13,6 +13,7 @@ from decimal import Decimal
 
 from core.formatting import (
     MINUS,
+    fix_unit_plural,
     fmt_date,
     inr,
     num,
@@ -22,6 +23,7 @@ from core.formatting import (
     round_dec,
     short_date,
     to_decimal,
+    units,
 )
 
 D0 = Decimal(0)
@@ -319,7 +321,7 @@ def auto_remark(totals: Numbers, lines, sale_value=None, th: Thresholds | None =
         parts.append("Stock matched, no variance.")
     else:
         text = (
-            f"{variance_word(totals)} of {qty(abs(totals.diff_qty))} units ({inr(abs(totals.diff_value))}), "
+            f"{variance_word(totals)} of {units(abs(totals.diff_qty))} ({inr(abs(totals.diff_value))}), "
             f"{round_dec(abs(var), 1)}% of stock value"
         )
         if has_sale(sale_value):
@@ -726,20 +728,32 @@ class OverallRow:
         return self.label not in NEUTRAL_ROWS
 
 
+ONLY_IN_A, ONLY_IN_B = "Only in A", "Only in B"
+
+
 @dataclass
 class CategoryRow:
     category: str
-    a: Numbers
-    b: Numbers
-    change_value: Change
+    a: Numbers | None
+    b: Numbers | None
+    change_value: Change | None
     verdict: str
+    units_change: Change | None = None  # set on the Total row, where the change uses common categories only
 
     @property
     def verdict_tone(self):
         return VERDICT_TONE.get(self.verdict, "neutral")
 
     @property
-    def change_units(self) -> Change:
+    def is_common(self) -> bool:
+        return self.a is not None and self.b is not None
+
+    @property
+    def change_units(self) -> Change | None:
+        if self.units_change is not None:
+            return self.units_change
+        if not self.is_common:
+            return None
         return change_in_units(self.a, self.b)
 
 
@@ -766,12 +780,46 @@ class Comparison:
     any_sale: bool
 
     @property
-    def category_total(self) -> CategoryRow:
-        """Closing "Total" row of the category table: the sum of the rows shown, for A and for B."""
+    def table_rows(self) -> list[CategoryRow]:
+        """Every category of either audit, for the category table. `categories` holds only the
+        categories present in both, which the verdicts, sentences and changes are based on."""
+        common = {r.category: r for r in self.categories}
+        names = list(self.b.lines)
+        prev_name = None
+        for name in self.a.lines:  # place A-only categories after the category that precedes them in A
+            if name not in self.b.lines:
+                pos = names.index(prev_name) + 1 if prev_name in names else 0
+                names.insert(pos, name)
+            prev_name = name
+        rows = []
+        for name in names:
+            if name in common:
+                rows.append(common[name])
+            elif name in self.a.lines:
+                rows.append(CategoryRow(name, self.a.lines[name], None, None, ONLY_IN_A))
+            else:
+                rows.append(CategoryRow(name, None, self.b.lines[name], None, ONLY_IN_B))
+        return rows
+
+    @property
+    def one_sided_count(self) -> int:
+        return len(set(self.a.lines) ^ set(self.b.lines))
+
+    @property
+    def common_total(self) -> CategoryRow:
+        """Subtotals of the categories present in both audits; the Total row's changes use these."""
         a = audit_totals(r.a for r in self.categories)
         b = audit_totals(r.b for r in self.categories)
-        a.category = b.category = "Total"
-        return CategoryRow("Total", a, b, change_in_value(a, b), "")
+        a.category = b.category = "Common categories only"
+        return CategoryRow("Common categories only", a, b, change_in_value(a, b), "")
+
+    @property
+    def category_total(self) -> CategoryRow:
+        """Closing "Total" row: each audit's full totals (every category), with the change in value
+        and in units worked out on the common categories only."""
+        common = self.common_total
+        return CategoryRow("Total", self.a.totals, self.b.totals, common.change_value, "",
+                           units_change=common.change_units)
 
 
 def followup_status(obs: Obs, a: AuditData, b: AuditData, th: Thresholds) -> str:
@@ -828,8 +876,8 @@ def compare(a: AuditData, b: AuditData, th: Thresholds | None = None) -> Compari
         overall.append(OverallRow("Sale value", sa, sb, ch))
     overall.append(OverallRow("Net variance", inr(ta.diff_value), inr(tb.diff_value),
                               change_abs_relative(ta.diff_value, tb.diff_value)))
-    overall.append(OverallRow("Difference, units", f"{qty(ta.diff_qty, signed=True)} units",
-                              f"{qty(tb.diff_qty, signed=True)} units", change_in_units(ta, tb)))
+    overall.append(OverallRow("Difference, units", units(ta.diff_qty, signed=True),
+                              units(tb.diff_qty, signed=True), change_in_units(ta, tb)))
     overall.append(OverallRow("Variance % of stock value", pct(ta.var_pct), pct(tb.var_pct),
                               change_pts(ta.var_pct, tb.var_pct)))
     if any_sale:
@@ -878,7 +926,7 @@ def change_in_units(a: Numbers, b: Numbers) -> Change:
     d = abs(b.diff_qty) - abs(a.diff_qty)
     if abs(d) < NEGLIGIBLE_QTY:
         return Change("No change", "none", "neutral")
-    return Change(f"{_arrow(d)} {qty(abs(d))} units", "down" if d < 0 else "up", "good" if d < 0 else "bad")
+    return Change(f"{_arrow(d)} {units(abs(d))}", "down" if d < 0 else "up", "good" if d < 0 else "bad")
 
 
 @dataclass
@@ -1035,7 +1083,7 @@ def suggest_drafts(audit_id, lines, templates: dict | None = None) -> list[dict]
             "category": n.category,
             "kind": SHORTAGE,
             "severity": HIGH if n.shortage_pct > 3 else MEDIUM,
-            "text": f"Shortage of {qty(abs(n.diff_qty))} units ({inr(abs(n.diff_value))}, "
+            "text": f"Shortage of {units(abs(n.diff_qty))} ({inr(abs(n.diff_value))}, "
                     f"{round_dec(n.shortage_pct, 2)}% of stock value). {cause}",
             "recommendation": rec,
         })
@@ -1044,16 +1092,18 @@ def suggest_drafts(audit_id, lines, templates: dict | None = None) -> list[dict]
         if worst_damage.damage_pct > Decimal("0.95"):
             drafts.append({
                 "category": worst_damage.category, "kind": DAMAGE, "severity": MEDIUM,
-                "text": damage_t[0].format(pct=round_dec(worst_damage.damage_pct, 2), category=worst_damage.category,
-                                           units=qty(worst_damage.damage_qty)),
+                "text": fix_unit_plural(damage_t[0].format(
+                    pct=round_dec(worst_damage.damage_pct, 2), category=worst_damage.category,
+                    units=qty(worst_damage.damage_qty))),
                 "recommendation": damage_t[1],
             })
         worst_wbc = max(lines, key=lambda n: n.wbc_pct)
         if worst_wbc.wbc_pct > Decimal("0.95"):
             drafts.append({
                 "category": worst_wbc.category, "kind": WBC, "severity": MEDIUM,
-                "text": wbc_t[0].format(pct=round_dec(worst_wbc.wbc_pct, 2), category=worst_wbc.category,
-                                        units=qty(worst_wbc.wbc_qty)),
+                "text": fix_unit_plural(wbc_t[0].format(
+                    pct=round_dec(worst_wbc.wbc_pct, 2), category=worst_wbc.category,
+                    units=qty(worst_wbc.wbc_qty))),
                 "recommendation": wbc_t[1],
             })
     if not drafts:

@@ -17,8 +17,8 @@
     <div class="big-num num {{ cur.diff_value|money_class }}">{{ cur.diff_value|cinr }}</div>
     <p class="muted">{{ cur.var_pct|pct }} of the {{ cur.stock_value|cinr }} stock value audited, across {{ cur.audits }} audit{{ cur.audits|pluralize }}{% if cur.sale_text %}; {{ cur.sale_text }}{% endif %}</p>
     <dl class="split">
-      <div><dt>Shortage</dt><dd class="shortage num">{{ cur.shortage|absval|cinr }}</dd><small>{{ cur.shortage_qty|absval|qty }} units</small></div>
-      <div><dt>Excess</dt><dd class="excess num">{{ cur.excess|cinr }}</dd><small>{{ cur.excess_qty|qty }} units</small></div>
+      <div><dt>Shortage</dt><dd class="shortage num">{{ cur.shortage|absval|cinr }}</dd><small>{{ cur.shortage_qty|absval|units }}</small></div>
+      <div><dt>Excess</dt><dd class="excess num">{{ cur.excess|cinr }}</dd><small>{{ cur.excess_qty|units }}</small></div>
     </dl>
     <p style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px"><span class="muted d">Shortage</span><span class="d tone-{{ shortage_change.tone }}">{{ shortage_change.text }}</span></p>
   </div>
