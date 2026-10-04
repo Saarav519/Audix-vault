@@ -44,16 +44,10 @@ def overview(request):
     waiting = waiting_for_files(Audit.objects.live().filter(client__is_active=True))
 
     # stores above the Watch threshold, judged on each store's latest published audit
-    latest_ids = (published.values("store_id").annotate(last=Max("audit_date")))
-    latest_map = {r["store_id"]: r["last"] for r in latest_ids}
-    above = 0
     thresholds = {c.pk: c.thresholds() for c in active_clients}
-    seen = set()
-    for a in published.filter(store_id__in=list(latest_map)).order_by("store_id", "-audit_date", "-created_at").only(
-            "store_id", "client_id", "audit_date", "var_pct_stock"):
-        if a.store_id in seen or latest_map.get(a.store_id) != a.audit_date:
-            continue
-        seen.add(a.store_id)
+    above = 0
+    for a in published.order_by("store_id", "-audit_date", "-created_at").distinct("store_id").only(
+            "store_id", "client_id", "var_pct_stock"):
         th = thresholds.get(a.client_id)
         if th and abs(a.var_pct_stock) > th.warn_pct:
             above += 1

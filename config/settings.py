@@ -153,7 +153,9 @@ CSRF_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_AGE = 60 * 30  # overridden per request from AppSettings
 SESSION_SAVE_EVERY_REQUEST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-X_FRAME_OPTIONS = "SAMEORIGIN"
+X_FRAME_OPTIONS = "SAMEORIGIN"  # the signoff PDF preview is framed by our own page
+# W019: SAMEORIGIN is needed for the signoff preview. W021: HSTS preload is an owner decision for the final domain.
+SILENCED_SYSTEM_CHECKS = ["security.W019", "security.W021"]
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
 if not DEBUG:

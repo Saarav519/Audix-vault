@@ -65,9 +65,8 @@ def store_rows(qs, stores, th: calc.Thresholds) -> list[dict]:
         audits=Count("id"), s_stock=Sum("stock_value"), s_diff=Sum("diff_value"),
         s_damage=Sum("damage_value"), s_wbc=Sum("wbc_value"),
         s_shortage=Sum("diff_value", filter=Q(diff_value__lt=0)), last=Max("audit_date"))}
-    latest = {}
-    for a in qs.filter(store_id__in=list(agg)).select_related("previous_audit").order_by("store_id", "-audit_date", "-created_at"):
-        latest.setdefault(a.store_id, a)
+    latest = {a.store_id: a for a in qs.filter(store_id__in=list(agg)).select_related("previous_audit")
+              .order_by("store_id", "-audit_date", "-created_at").distinct("store_id")}
     rows = []
     for s in stores:
         r = agg.get(s.pk)

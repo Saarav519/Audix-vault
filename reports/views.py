@@ -306,9 +306,8 @@ def compare(request):
             else:
                 a = latest
     quick = []
-    latest_by_store = {}
-    for au in qs.filter(previous_audit__isnull=False).order_by("store__code", "-audit_date", "-created_at"):
-        latest_by_store.setdefault(au.store_id, au)
+    latest_by_store = {au.store_id: au for au in qs.filter(previous_audit__isnull=False)
+                       .order_by("store_id", "-audit_date", "-created_at").distinct("store_id")}
     for s in stores:
         lat = latest_by_store.get(s.pk)
         if lat is not None:

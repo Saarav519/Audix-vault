@@ -33,3 +33,5 @@ One line each: what, and why.
 - Import: rows are grouped into audits by client, store code, date, type and shift; a dry run is the default; the real import needs the same file uploaded again with the dry run unticked (nothing is kept on the server between the two). Any error blocks the whole import.
 - seed_demo uses a fixed random seed (2026) so the demo looks the same on every deploy; GR04 and GR08 are made overdue on purpose; about 8% of recent audits are left without files so "Waiting for files" has content. Demo clients do not get publish emails.
 - Editable observation templates: the model and lookup exist (`ObservationTemplate`); there is no admin screen for them yet (first item on the cut list).
+- Security warnings W019 (X-Frame-Options SAMEORIGIN, needed for the signoff preview) and W021 (HSTS preload) are silenced on purpose; W005 (HSTS include subdomains) stays visible and can be turned on with `SECURE_HSTS_INCLUDE_SUBDOMAINS=1` once the domain is final.
+- CI (GitHub Actions) runs ruff, pytest on PostgreSQL 16, pip-audit and `check --deploy --fail-level ERROR`.
