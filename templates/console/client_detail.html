@@ -1,0 +1,57 @@
+{% extends "base.html" %}{% load audix %}
+{% block title %}{{ client.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{{ client.name }}</h1>
+  <p>{% if client.is_active %}{% status_pill "Active" "good" %}{% else %}{% status_pill "Disabled" "neutral" %}{% endif %}
+  <span class="muted small">Healthy up to {{ thresholds.good_pct|plain_pct }}, Watch up to {{ thresholds.warn_pct|plain_pct }}, audit cycle {{ client.cycle_days }} days (due soon {{ client.soon_days }} days).</span></p></div>
+  <div class="row">
+    <form method="post" action="{% url 'console:view_as' client.pk %}">{% csrf_token %}<button class="btn" type="submit">{% icon "eye" %} View as client</button></form>
+    <a class="btn" href="{% url 'console:client_edit' client.pk %}">Edit details</a>
+    <form method="post" action="{% url 'console:client_toggle' client.pk %}" data-confirm="{% if client.is_active %}Disable this client? Their users will not be able to sign in. Data is kept.{% else %}Enable this client?{% endif %}">{% csrf_token %}<button class="btn {% if client.is_active %}btn-danger{% endif %}" type="submit">{% if client.is_active %}Disable{% else %}Enable{% endif %}</button></form>
+  </div>
+</div>
+<div class="grid grid-2">
+<section class="card" aria-labelledby="stores-h">
+  <div class="card-head"><h2 id="stores-h">Stores</h2><span class="muted small">{{ stores|length }} total</span></div>
+  <div class="table-wrap"><table class="table"><thead><tr><th>Code</th><th>Store</th><th>City</th><th class="num">Audits</th><th>Last audit</th><th></th></tr></thead><tbody>
+  {% for s in stores %}<tr><td>{{ s.code }}</td><td>{{ s.name }}{% if not s.is_active %} <span class="tag">Inactive</span>{% endif %}</td><td>{{ s.city }}</td><td class="num">{{ s.audit_count }}</td><td>{{ s.last_audit|fdate|default:"—" }}</td>
+  <td class="nowrap"><a class="btn btn-sm" href="{% url 'console:store_edit' s.pk %}">Edit</a> <form method="post" action="{% url 'console:store_toggle' s.pk %}" style="display:inline">{% csrf_token %}<button class="btn btn-sm" type="submit">{% if s.is_active %}Deactivate{% else %}Activate{% endif %}</button></form></td></tr>
+  {% empty %}<tr><td colspan="6" class="empty">No stores yet.</td></tr>{% endfor %}
+  </tbody></table></div>
+  <form method="post" action="{% url 'console:store_add' client.pk %}" class="filters" style="margin-top:12px">{% csrf_token %}
+    <div class="field"><label for="st-code">Code</label><input id="st-code" name="code" required maxlength="30"></div>
+    <div class="field"><label for="st-name">Name</label><input id="st-name" name="name" required maxlength="120"></div>
+    <div class="field"><label for="st-city">City</label><input id="st-city" name="city" maxlength="80"></div>
+    <button class="btn" type="submit">Add store</button></form>
+</section>
+<section class="card" aria-labelledby="cat-h">
+  <div class="card-head"><h2 id="cat-h">Categories</h2><span class="muted small">Shown in this order in audits</span></div>
+  <div class="table-wrap"><table class="table"><thead><tr><th class="num">Order</th><th>Category</th><th></th></tr></thead><tbody>
+  {% for c in categories %}<tr><td class="num">{{ c.sort_order }}</td><td>{{ c.name }}{% if not c.is_active %} <span class="tag">Inactive</span>{% endif %}</td>
+  <td class="nowrap"><a class="btn btn-sm" href="{% url 'console:category_edit' c.pk %}">Edit</a> <form method="post" action="{% url 'console:category_toggle' c.pk %}" style="display:inline">{% csrf_token %}<button class="btn btn-sm" type="submit">{% if c.is_active %}Deactivate{% else %}Activate{% endif %}</button></form></td></tr>
+  {% empty %}<tr><td colspan="3" class="empty">No categories yet.</td></tr>{% endfor %}
+  </tbody></table></div>
+  <form method="post" action="{% url 'console:category_add' client.pk %}" class="filters" style="margin-top:12px">{% csrf_token %}
+    <div class="field"><label for="cat-name">Name</label><input id="cat-name" name="name" required maxlength="80"></div>
+    <div class="field" style="max-width:110px"><label for="cat-order">Order</label><input id="cat-order" name="sort_order" type="number" min="0" value="{{ category_form.initial.sort_order }}"></div>
+    <button class="btn" type="submit">Add category</button></form>
+</section>
+</div>
+<section class="card" aria-labelledby="logins-h">
+  <div class="card-head"><h2 id="logins-h">Logins</h2></div>
+  <div class="table-wrap"><table class="table"><thead><tr><th>Login ID</th><th>Name</th><th>Role</th><th>Last sign-in</th><th>Status</th><th></th></tr></thead><tbody>
+  {% for u in logins %}<tr><td>{{ u.login_id }}</td><td>{{ u.name }}</td><td>{{ u.get_role_display }}{% if u.role == "client_store" %}<span class="sub">{% for s in u.allowed_stores.all %}{{ s.code }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>{% endif %}</td><td>{{ u.last_login|fdate|default:"Never" }}</td>
+  <td>{% if not u.is_active %}{% status_pill "Disabled" "neutral" %}{% elif u.must_change_password %}{% status_pill "Must change password" "warn" %}{% else %}{% status_pill "Active" "good" %}{% endif %}</td>
+  <td class="nowrap"><form method="post" action="{% url 'console:user_reset' u.pk %}" style="display:inline" data-confirm="Reset the password for {{ u.login_id }}? The new temporary password is shown once.">{% csrf_token %}<button class="btn btn-sm" type="submit">Reset password</button></form>
+  <form method="post" action="{% url 'console:user_toggle' u.pk %}" style="display:inline">{% csrf_token %}<button class="btn btn-sm" type="submit">{% if u.is_active %}Disable{% else %}Enable{% endif %}</button></form></td></tr>
+  {% empty %}<tr><td colspan="6" class="empty">No logins.</td></tr>{% endfor %}
+  </tbody></table></div>
+  <details style="margin-top:12px"><summary class="btn btn-sm">Add a login</summary>
+  <form method="post" action="{% url 'console:login_add' client.pk %}" style="margin-top:12px" novalidate>{% csrf_token %}
+    <div class="form-grid">{% include "partials/field.html" with field=login_form.login_id %}{% include "partials/field.html" with field=login_form.name %}{% include "partials/field.html" with field=login_form.email %}{% include "partials/field.html" with field=login_form.role %}</div>
+    <div class="field"><label for="id_password">Temporary password</label><div class="row" style="flex-wrap:nowrap">{{ login_form.password }}<button class="btn" type="button" data-generate-password="id_password">Generate</button></div></div>
+    {% include "partials/field.html" with field=login_form.stores %}
+    <button class="btn btn-primary" type="submit">Create login</button></form></details>
+</section>
+{% endblock %}

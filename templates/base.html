@@ -1,0 +1,84 @@
+{% load static audix %}<!doctype html>
+<html lang="en-IN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>{% block title %}Audix Vault{% endblock %} · Audix Vault</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Montserrat:wght@500;600;700;800&display=swap">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
+  <script src="{% static 'js/theme.js' %}"></script>
+  <script src="{% static 'js/htmx.min.js' %}" defer></script>
+  <script src="{% static 'js/app.js' %}" defer></script>
+  {% block head %}{% endblock %}
+</head>
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+{% block body %}
+<a class="skip-link" href="#main">Skip to content</a>
+{% if portal_scope.impersonating %}
+<div class="banner" role="status">
+  <span>Viewing as {{ portal_scope.client.name }} (read-only). Everything you open is logged.</span>
+  <form method="post" action="{% url 'console:view_as_stop' %}">{% csrf_token %}<button class="btn btn-sm btn-dark" type="submit">Exit client view</button></form>
+</div>
+{% endif %}
+<div class="shell">
+  <aside class="sidebar on-dark" aria-label="Main navigation">
+    <a class="wordmark" href="{% url 'home' %}" aria-label="Audix Vault home">{% wordmark %}</a>
+    <nav>
+      {% include "partials/nav.html" with variant="side" %}
+    </nav>
+    <div class="sidebar-foot">
+      <div class="tagline">Where Audits Meet <em>Exceptionalism</em></div>
+      <div>Audix Solutions &amp; Co</div>
+    </div>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <a class="wordmark mobile-brand" href="{% url 'home' %}" aria-label="Audix Vault home">{% wordmark %}</a>
+      {% if portal_client %}
+        <div class="cobrand">
+          {% if portal_client.logo_key %}<img src="{% url 'files:client_logo' portal_client.pk %}" alt="">{% endif %}
+          <span>{{ portal_client.name }}</span>
+        </div>
+      {% elif user.is_staff_member %}
+        <div class="cobrand"><span>Audix console</span></div>
+      {% endif %}
+      <div class="spacer"></div>
+      {% if in_client_mode %}
+      <form class="search" role="search" method="get" action="{% url 'portal:audits' %}">
+        {% icon "search" %}
+        <label class="sr-only" for="global-search">Search audits</label>
+        <input id="global-search" type="search" name="q" placeholder="Search store, date, reference" value="{{ request.GET.q|default:'' }}">
+      </form>
+      {% endif %}
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch light or dark mode">{% icon "moon" %}</button>
+      <div class="user-chip">
+        <span class="avatar" aria-hidden="true">{{ user.name|default:user.login_id|slice:":1"|upper }}</span>
+        <span class="who"><strong>{{ user.name|default:user.login_id }}</strong><br><span class="muted small">{{ user.get_role_display }}</span></span>
+      </div>
+      <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="icon-btn" type="submit" aria-label="Sign out" title="Sign out">{% icon "logout" %}</button></form>
+    </header>
+    <main id="main" class="content" tabindex="-1">
+      {% if messages %}<ul class="messages">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
+      {% block content %}{% endblock %}
+    </main>
+    {% include "partials/footer.html" %}
+  </div>
+</div>
+<nav class="tabbar" aria-label="Main navigation">
+  {% include "partials/nav.html" with variant="tab" %}
+</nav>
+<div id="drawer-root"></div>
+<div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Photo viewer">
+  <div class="lb-bar"><span data-lb-caption></span><span class="row"><a class="btn btn-sm" data-lb-download href="#">Download</a><button class="btn btn-sm" type="button" data-lb-close>Close</button></span></div>
+  <button class="lb-nav lb-prev" type="button" data-lb-prev aria-label="Previous photo">&#8249;</button>
+  <img alt="" data-lb-img>
+  <button class="lb-nav lb-next" type="button" data-lb-next aria-label="Next photo">&#8250;</button>
+</div>
+{% endblock %}
+{% block scripts %}{% endblock %}
+</body>
+</html>

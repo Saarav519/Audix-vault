@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="page-head"><h1>{{ title }}</h1></div>
+<form method="post" class="card" style="max-width:560px" novalidate>{% csrf_token %}
+{% include "partials/form_errors.html" %}
+{% for field in form %}{% include "partials/field.html" %}{% endfor %}
+<div class="row"><button class="btn btn-primary" type="submit">Save</button><a class="btn" href="{% url 'console:client_detail' back.pk %}">Cancel</a></div>
+</form>
+{% endblock %}

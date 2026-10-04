@@ -1,0 +1,32 @@
+{% extends "base.html" %}{% load audix %}
+{% block title %}Sign in{% endblock %}
+{% block body %}
+<div class="login-page">
+  <section class="login-brand on-dark">
+    <span class="wordmark">{% wordmark %}</span>
+    <div>
+      <h1>Every audit, every report, whenever you need it.</h1>
+      <p>Audix Vault keeps your stock audit summaries, signoff copies, photographs and reports in one private place. Sign in to see your dashboard, compare audits and check your audit cycle.</p>
+      <div class="tagline">Where Audits Meet <em>Exceptionalism</em></div>
+    </div>
+    {% include "partials/assoc.html" %}
+  </section>
+  <section class="login-form">
+    <div class="card">
+      <h2>Sign in</h2>
+      <p class="muted small">Use the login ID and password shared by Audix Solutions &amp; Co.</p>
+      {% if messages %}<ul class="messages">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}<ul class="messages"><li class="error" role="alert">{{ form.non_field_errors.0 }}</li></ul>{% endif %}
+        <div class="field"><label for="id_username">Login ID</label>{{ form.username }}</div>
+        <div class="field"><label for="id_password">Password</label>{{ form.password }}</div>
+        <input type="hidden" name="next" value="{{ next }}">
+        <button class="btn btn-primary" type="submit" style="width:100%">Sign in</button>
+      </form>
+      <p class="muted small" style="margin-top:14px">Forgot your password? Ask your Audix contact to reset it.</p>
+      <div class="row between" style="margin-top:18px"><span class="muted small">Powered by Audix Solutions &amp; Co</span><button class="linkish small" type="button" data-theme-toggle>Light / dark</button></div>
+    </div>
+  </section>
+</div>
+{% endblock %}

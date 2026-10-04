@@ -1,0 +1,25 @@
+{% extends "base.html" %}{% load audix %}
+{% block title %}{% if creating %}Create client{% else %}Edit {{ client.name }}{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% if creating %}Create client{% else %}Edit {{ client.name }}{% endif %}</h1>
+<p>{% if creating %}The client gets one head-office login. You can add stores, categories and more logins later.{% else %}Thresholds and the audit cycle apply to this client only.{% endif %}</p></div></div>
+<form method="post" enctype="multipart/form-data" novalidate class="card" style="max-width:860px">{% csrf_token %}
+{% include "partials/form_errors.html" %}
+{% if creating %}
+<div class="form-grid">{% include "partials/field.html" with field=form.name %}{% include "partials/field.html" with field=form.contact_emails %}</div>
+<div class="form-grid">{% include "partials/field.html" with field=form.login_id %}
+<div class="field"><label for="id_password">Temporary password</label><div class="row" style="flex-wrap:nowrap">{{ form.password }}<button class="btn" type="button" data-generate-password="id_password">Generate</button></div><span class="help">At least 10 characters. Share it with the client yourself; it is not stored in readable form.</span>{% if form.password.errors %}<ul class="errorlist">{% for e in form.password.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}</div></div>
+{% include "partials/field.html" with field=form.logo %}
+{% include "partials/field.html" with field=form.must_change_password %}
+{% include "partials/field.html" with field=form.notify_on_publish %}
+<div class="form-grid">{% include "partials/field.html" with field=form.stores %}{% include "partials/field.html" with field=form.categories %}</div>
+{% else %}
+<div class="form-grid">{% include "partials/field.html" with field=form.name %}{% include "partials/field.html" with field=form.contact_emails %}</div>
+{% include "partials/field.html" with field=form.logo %}
+{% include "partials/field.html" with field=form.notify_on_publish %}
+<h3>Thresholds and cycle</h3>
+<div class="form-grid">{% include "partials/field.html" with field=form.good_pct %}{% include "partials/field.html" with field=form.warn_pct %}{% include "partials/field.html" with field=form.cycle_days %}{% include "partials/field.html" with field=form.soon_days %}</div>
+{% endif %}
+<div class="row"><button class="btn btn-primary" type="submit">{% if creating %}Create client{% else %}Save{% endif %}</button><a class="btn" href="{% if creating %}{% url 'console:clients' %}{% else %}{% url 'console:client_detail' client.pk %}{% endif %}">Cancel</a></div>
+</form>
+{% endblock %}

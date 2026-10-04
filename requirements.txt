@@ -1,0 +1,14 @@
+# Runtime dependencies (pinned)
+Django==5.2.17
+psycopg[binary]==3.3.6
+django-environ==0.14.0
+gunicorn==26.2.0
+whitenoise==6.12.0
+argon2-cffi==25.1.0
+django-axes==8.3.1
+boto3==1.43.108
+Pillow==12.3.0
+pillow-heif==1.8.0
+openpyxl==3.1.5
+reportlab==5.0.1
+sentry-sdk==2.71.0

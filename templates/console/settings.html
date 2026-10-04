@@ -1,0 +1,39 @@
+{% extends "base.html" %}{% load audix %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Settings</h1><p>Global defaults. A client can override thresholds and the audit cycle on its own page.</p></div></div>
+<div class="grid grid-2">
+<form method="post" class="card" novalidate>{% csrf_token %}
+  {% include "partials/form_errors.html" %}
+  <h2>Thresholds</h2>
+  <div class="form-grid">{% include "partials/field.html" with field=form.good_pct %}{% include "partials/field.html" with field=form.warn_pct %}</div>
+  <p class="muted small">Variance of stock value at or below “Healthy up to” is Healthy, at or below “Watch up to” is Watch, above it is Review. Changing these updates every status and remark.</p>
+  <h2>Audit cycle</h2>
+  <div class="form-grid">{% include "partials/field.html" with field=form.cycle_days %}{% include "partials/field.html" with field=form.soon_days %}</div>
+  <h2>Workflow and notifications</h2>
+  {% include "partials/field.html" with field=form.auditor_can_publish %}
+  {% include "partials/field.html" with field=form.notify_new_audit %}
+  {% include "partials/field.html" with field=form.notify_monthly_summary %}
+  {% include "partials/field.html" with field=form.notify_missing_files %}
+  <h2>Security</h2>
+  <div class="form-grid">{% include "partials/field.html" with field=form.session_timeout_minutes %}{% include "partials/field.html" with field=form.signed_url_minutes %}</div>
+  <button class="btn btn-primary" type="submit">Save settings</button>
+</form>
+<div class="stack">
+<section class="card"><h2>Storage and backups</h2>
+  <p>File storage: {% if storage_backend == "s3" %}{% status_pill "S3 bucket connected" "good" %}{% elif storage_backend == "local" %}{% status_pill "Local disk (not permanent)" "warn" %}{% else %}{% status_pill "Not configured yet" "bad" %}{% endif %}</p>
+  <p>Last database backup: {% if app.last_backup_at %}{{ app.last_backup_at|fdate }} <span class="muted small">{{ app.last_backup_note }}</span>{% else %}<span class="muted">No backup recorded yet.</span>{% endif %}</p>
+  <p class="muted small">Backups run with the <code>backup_database</code> and <code>sync_bucket_backup</code> commands (Railway cron).</p>
+</section>
+<section class="card"><h2>Audix team</h2>
+  <div class="table-wrap"><table class="table"><thead><tr><th>Login ID</th><th>Name</th><th>Role</th><th></th></tr></thead><tbody>
+  {% for u in staff %}<tr><td>{{ u.login_id }}{% if not u.is_active %} <span class="tag">Disabled</span>{% endif %}</td><td>{{ u.name }}</td><td>{{ u.get_role_display }}</td><td class="nowrap">{% if u.pk != user.pk %}<form method="post" action="{% url 'console:user_reset' u.pk %}" style="display:inline" data-confirm="Reset this password?">{% csrf_token %}<button class="btn btn-sm" type="submit">Reset password</button></form> <form method="post" action="{% url 'console:user_toggle' u.pk %}" style="display:inline">{% csrf_token %}<button class="btn btn-sm" type="submit">{% if u.is_active %}Disable{% else %}Enable{% endif %}</button></form>{% else %}<a class="btn btn-sm" href="{% url 'accounts:password_change' %}">Change my password</a>{% endif %}</td></tr>{% endfor %}
+  </tbody></table></div>
+  <details style="margin-top:12px"><summary class="btn btn-sm">Add a team login</summary>
+  <form method="post" action="{% url 'console:staff_add' %}" style="margin-top:12px" novalidate>{% csrf_token %}
+  <div class="form-grid">{% include "partials/field.html" with field=staff_form.login_id %}{% include "partials/field.html" with field=staff_form.name %}{% include "partials/field.html" with field=staff_form.email %}{% include "partials/field.html" with field=staff_form.role %}</div>
+  <div class="field"><label for="id_password">Temporary password</label><div class="row" style="flex-wrap:nowrap">{{ staff_form.password }}<button class="btn" type="button" data-generate-password="id_password">Generate</button></div></div>
+  <button class="btn btn-primary" type="submit">Create login</button></form></details>
+</section>
+</div></div>
+{% endblock %}
