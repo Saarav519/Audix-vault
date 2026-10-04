@@ -1,15 +1,32 @@
 {% extends "base.html" %}{% load audix %}
 {% block title %}Clients{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Clients</h1><p>Create clients, manage their stores, categories and logins.</p></div>
+<div class="page-head"><div><h1>Clients</h1><p>Create logins, add stores and control who can sign in. Each client sees only their own data.</p></div>
 <a class="btn btn-primary" href="{% url 'console:client_create' %}">{% icon "plus" %} Create client</a></div>
-<div class="card">
-<form class="filters" method="get" style="margin-bottom:12px"><div class="field"><label for="q">Search</label><input id="q" name="q" type="search" value="{{ q }}" placeholder="Client name"></div><button class="btn" type="submit">Search</button></form>
-<div class="table-wrap"><table class="table">
-<thead><tr><th>Client</th><th class="num">Stores</th><th class="num">Logins</th><th>Last audit</th><th>Status</th></tr></thead>
+<div class="stack">
+<form class="filters card" method="get"><div class="field" style="margin:0"><label for="q">Search</label><input id="q" name="q" type="search" value="{{ q }}" placeholder="Client name"></div><button class="btn" type="submit">Search</button></form>
+<section class="card">
+<div class="table-wrap" style="margin-top:-18px"><table class="table" style="min-width:1020px">
+<thead><tr><th>Client</th><th>Login ID</th><th class="num">Stores</th><th>Last login</th><th>Last audit</th><th>Status</th><th></th></tr></thead>
 <tbody>
 {% for c in clients %}
-<tr data-href="{% url 'console:client_detail' c.pk %}" class="clickable"><td><a href="{% url 'console:client_detail' c.pk %}">{{ c.name }}</a></td><td class="num">{{ c.store_count }}</td><td class="num">{{ c.login_count }}</td><td>{{ c.last_audit|fdate|default:"No audit yet" }}</td><td>{% if c.is_active %}{% status_pill "Active" "good" %}{% else %}{% status_pill "Disabled" "neutral" %}{% endif %}</td></tr>
-{% empty %}<tr><td colspan="5" class="empty">No clients yet. Create the first one.</td></tr>{% endfor %}
-</tbody></table></div></div>
+<tr>
+  <td><div class="row" style="flex-wrap:nowrap;gap:10px">
+    <span class="mono sm" aria-hidden="true">{% if c.logo_key %}<img src="{% url 'files:client_logo' c.pk %}" alt="">{% else %}{{ c.name|initials }}{% endif %}</span>
+    <span class="sn"><a href="{% url 'console:client_detail' c.pk %}" style="color:inherit;text-decoration:none"><b>{{ c.name }}</b></a><span class="sub">{{ c.email_list.0|default:"No contact email" }}</span></span></div></td>
+  <td class="num">{{ c.head_login.login_id|default:"—" }}{% if c.login_count > 1 %}<span class="sub">+{{ c.login_count|add:"-1" }} more</span>{% endif %}</td>
+  <td class="num">{{ c.store_count }}</td>
+  <td class="nowrap">{% if c.last_login %}{{ c.last_login|date:"j M" }}, {{ c.last_login|time:"H:i" }}{% else %}<span class="muted">Never</span>{% endif %}</td>
+  <td class="num nowrap">{{ c.last_audit|fdate|default:"None yet" }}</td>
+  <td>{% if c.is_active %}{% status_pill "Active" "good" %}{% else %}{% status_pill "Disabled" "neutral" %}{% endif %}</td>
+  <td><div class="row" style="flex-wrap:nowrap;gap:6px;justify-content:flex-end">
+    <form method="post" action="{% url 'console:view_as' c.pk %}">{% csrf_token %}<button class="btn btn-sm" type="submit">View as client</button></form>
+    {% if c.head_login %}<form method="post" action="{% url 'console:user_reset' c.head_login.pk %}" data-confirm="Reset the password for {{ c.head_login.login_id }}? The new temporary password is shown once.">{% csrf_token %}<button class="btn btn-sm" type="submit">Reset password</button></form>{% endif %}
+    <form method="post" action="{% url 'console:client_toggle' c.pk %}" data-confirm="{% if c.is_active %}Disable {{ c.name }}? Their users will not be able to sign in. Data is kept.{% else %}Enable {{ c.name }}?{% endif %}">{% csrf_token %}<input type="hidden" name="next" value="list"><button class="btn btn-sm {% if c.is_active %}btn-danger{% endif %}" type="submit">{% if c.is_active %}Disable{% else %}Enable{% endif %}</button></form>
+  </div></td>
+</tr>
+{% empty %}<tr><td colspan="7" class="empty">No clients yet. Create the first one.</td></tr>{% endfor %}
+</tbody></table></div>
+</section>
+</div>
 {% endblock %}

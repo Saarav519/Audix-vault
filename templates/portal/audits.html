@@ -20,7 +20,7 @@
   <button class="btn" type="submit">Search</button>
   {% if f.q or f.store or f.type or f.shift or f.period %}<a class="btn" href="?{{ cq }}">Clear</a>{% endif %}
 </form>
-<p class="small" aria-live="polite"><strong>{{ summary.audits }} audit{{ summary.audits|pluralize }}</strong> · Stock value {{ summary.stock_value|inr }} · Shortage <span class="shortage">{{ summary.shortage|inr }}</span> · Excess <span class="excess">{{ summary.excess|inr }}</span> · Net <span class="{{ summary.diff_value|money_class }}">{{ summary.diff_value|inr }}</span> ({{ summary.var_pct|pct }} of stock value)</p>
+<p class="small" aria-live="polite"><strong>{{ summary.audits }} audit{{ summary.audits|pluralize }}</strong> · Stock value <b class="num">{{ summary.stock_value|cinr }}</b> · Shortage <b class="num shortage">{{ summary.shortage|absval|cinr }}</b> · Excess <b class="num excess">{{ summary.excess|cinr }}</b> · Net <b class="num {{ summary.diff_value|money_class }}">{{ summary.diff_value|cinr }}</b> ({{ summary.var_pct|pct }} of stock value)</p>
 <div class="table-wrap"><table class="table">
 <thead><tr><th>Date</th><th>Store</th><th>Audit type</th><th>Shift</th><th class="num">Stock value</th><th class="num">Total physical</th><th class="num">Difference</th><th class="num">Var %</th><th>Status</th></tr></thead>
 <tbody id="audit-rows">{% include "portal/partials/audit_rows.html" %}</tbody>

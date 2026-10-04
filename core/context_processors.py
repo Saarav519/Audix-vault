@@ -1,6 +1,7 @@
 from django.conf import settings
 
 from core.models import AppSettings
+from core.templatetags.audix import initials
 
 
 def portal(request):
@@ -19,7 +20,7 @@ def portal(request):
                 stores = stores.filter(pk__in=scope.store_ids)
             n = stores.count()
             cities = len({c.strip().lower() for c in stores.values_list("city", flat=True) if c.strip()})
-            ctx["client_initials"] = "".join(w[0] for w in client.name.split()[:2]).upper() or "C"
+            ctx["client_initials"] = initials(client.name)
             ctx["client_summary"] = (f"{n} store{'s' if n != 1 else ''} across {cities} cit{'ies' if cities != 1 else 'y'}"
                                      if cities else f"{n} store{'s' if n != 1 else ''}")
     return ctx

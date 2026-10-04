@@ -57,7 +57,7 @@
       </form>
       {% endif %}
       <div class="top-actions">
-        <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch light or dark mode">{% icon "moon" %}</button>
+        <button class="icon-btn theme-btn" type="button" data-theme-toggle aria-label="Switch light or dark mode"><span class="i-moon">{% icon "moon" %}</span><span class="i-sun">{% icon "sun" %}</span></button>
         <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="icon-btn" type="submit" aria-label="Sign out" title="Sign out ({{ user.name|default:user.login_id }})">{% icon "logout" %}</button></form>
       </div>
     </header>

@@ -1,10 +1,10 @@
 {% load audix %}{% for a in page %}
 <tr class="clickable" data-href="{% url 'audits:detail' a.pk %}">
   <td class="nowrap"><a href="{% url 'audits:detail' a.pk %}" data-drawer>{{ a.audit_date|fdate }}</a><span class="sub">{{ a.reference }}</span></td>
-  <td>{{ a.store.name }}<span class="sub">{{ a.store.code }} · {{ a.store.city }}</span></td>
+  <td class="sn"><b>{{ a.store.city|default:a.store.name }}</b><span class="sub">{{ a.store.name }} · {{ a.store.code }}</span></td>
   <td>{{ a.get_audit_type_display }}</td><td>{{ a.get_shift_display }}</td>
-  <td class="num">{{ a.stock_value|inr }}</td><td class="num">{{ a.total_value|inr }}</td>
-  <td class="num {{ a.diff_value|money_class }}">{{ a.diff_value|inr }}</td>
+  <td class="num">{{ a.stock_value|cinr }}</td><td class="num">{{ a.total_value|cinr }}</td>
+  <td class="num {{ a.diff_value|money_class }}">{{ a.diff_value|cinr }}</td>
   <td class="num">{{ a.var_pct_stock|pct }}<span class="sub">of stock</span>{% if a.var_pct_sale is not None %}<span class="sub">{{ a.var_pct_sale|pct }} of sale</span>{% endif %}</td>
   <td>{% status_pill a.status_label %}</td>
 </tr>

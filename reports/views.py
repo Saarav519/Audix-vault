@@ -91,9 +91,9 @@ def _change_pts(cur, prev, cmp="previous period"):
 def dashboard(request):
     client, scope, pickers = resolve(request)
     t = today()
-    period = request.GET.get("period", "monthly")
+    period = request.GET.get("period", "weekly")
     if period not in calc.WINDOW_DAYS:
-        period = "monthly"
+        period = "weekly"
     th = client.thresholds()
     stores = scope_stores(client, scope)
     qs = Audit.objects.for_scope(scope)

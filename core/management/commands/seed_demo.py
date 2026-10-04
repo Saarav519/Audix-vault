@@ -176,6 +176,15 @@ class Command(BaseCommand):
             if d not in full_set:
                 other.append((d, rng.choice(OTHER_TYPES)))
             d += timedelta(days=rng.randint(8, 16))
+        # Seed up to today: every store gets a frequent audit in the last 7 days so the Daily view has data.
+        week_start = self.today - timedelta(days=6)
+        if not any(day >= week_start for day, _ in other):
+            taken = full_set | {day for day, _ in other}
+            days = [self.today - timedelta(days=back) for back in rng.sample(range(7), 7)]
+            free = [day for day in days if day not in taken]
+            spaced = [day for day in free if not other or (day - other[-1][0]).days >= 3]
+            if spaced or free:
+                other.append(((spaced or free)[0], rng.choice(OTHER_TYPES)))
         return full, other
 
     def seed_store(self, client, store, cats, index, price, base, bias, trend, mults, th, start):

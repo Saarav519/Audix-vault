@@ -104,3 +104,19 @@ def test_seed_demo_refuses_when_not_allowed(settings, monkeypatch):
     assert not Client.objects.exists()
 
 
+
+
+def test_seed_demo_has_audits_in_the_last_7_days(monkeypatch, admin):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    monkeypatch.setenv("DEMO_CLIENT_PASSWORD", "Demo-pass-12345")
+    today = date(2026, 10, 4)
+    monkeypatch.setattr(timezone, "localdate", lambda: today)
+    call_command("seed_demo", "--no-files")
+    green = Client.objects.get(slug="greenfield-retail")
+    for store in green.stores.all():
+        recent = Audit.objects.filter(store=store, series="other", audit_date__gte=today - timedelta(days=6),
+                                      audit_date__lte=today)
+        assert recent.exists(), store.code

@@ -86,3 +86,46 @@ def test_client_badge_and_wording(user_a, client_a):
     assert "2 stores across 2 cities" in html
     assert "Net variance, last 4 weeks" in html and "vs previous 4 weeks" in html
     assert "Shortage, below the line" in html
+
+
+def test_all_audits_uses_compact_money(user_a, client_a):
+    f.make_audit(client_a, lines=[dict(stock_qty=1000, stock_value=2253000, physical_qty=990, physical_value=2240000)])
+    html = http_for(user_a).get(reverse("portal:audits")).content.decode()
+    assert "₹22.53 L" in html  # row stock value and summary line
+    assert "₹22,53,000" not in html
+    assert '<b class="num">₹22.53 L</b>' in html
+
+
+def test_clients_list_columns_and_actions(admin, client_a, user_a):
+    from django.utils import timezone
+
+    type(user_a).objects.filter(pk=user_a.pk).update(last_login=timezone.now())
+    html = http_for(admin).get(reverse("console:clients")).content.decode()
+    assert '<span class="mono sm" aria-hidden="true">AR</span>' in html
+    assert ">alpha<" in html  # head-office login ID
+    for label in ("Login ID", "Last login", "View as client", "Reset password", "Disable"):
+        assert label in html
+    assert reverse("console:view_as", args=[client_a.pk]) in html
+    assert reverse("console:user_reset", args=[user_a.pk]) in html
+    r = http_for(admin).post(reverse("console:client_toggle", args=[client_a.pk]), {"next": "list"})
+    assert r["Location"] == reverse("console:clients")
+
+
+def test_dashboard_defaults_to_weekly(user_a, client_a):
+    r = http_for(user_a).get(reverse("portal:dashboard"))
+    assert r.context["period"] == "weekly"
+
+
+def test_theme_toggle_has_sun_and_moon(user_a):
+    html = http_for(user_a).get(reverse("portal:dashboard")).content.decode()
+    assert 'class="i-moon"' in html and 'class="i-sun"' in html
+
+
+def test_activity_detail_shows_reference_once(admin, client_a):
+    from activity.log import log
+
+    audit = f.make_audit(client_a)
+    log(None, "download", "Downloaded audit excel", detail=f"{audit.reference}: Audit.xlsx", audit=audit, user=admin)
+    html = http_for(admin).get(reverse("console:activity") + "?type=download").content.decode()
+    row = html.split("Downloaded audit excel", 1)[1].split("</tr>", 1)[0]
+    assert row.count(audit.reference) == 1 and "Audit.xlsx" in row

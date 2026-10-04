@@ -42,10 +42,19 @@ def client_list(request):
     clients = Client.objects.annotate(
         store_count=Count("stores", filter=Q(stores__is_active=True), distinct=True),
         login_count=Count("users", distinct=True),
+        last_login=Max("users__last_login"),
         last_audit=Max("audits__audit_date", filter=Q(audits__status="published")),
     ).order_by("name")
     if q:
         clients = clients.filter(name__icontains=q)
+    clients = list(clients)
+    # the head-office login shown in the list: the client's first "client" login, else its first login
+    heads = {}
+    for u in User.objects.filter(client__in=clients).order_by("created_at"):
+        if u.client_id not in heads or (u.role == Role.CLIENT and heads[u.client_id].role != Role.CLIENT):
+            heads[u.client_id] = u
+    for c in clients:
+        c.head_login = heads.get(c.pk)
     return render(request, "console/client_list.html", {"clients": clients, "q": q})
 
 
@@ -127,6 +136,8 @@ def client_toggle(request, pk):
     log(request, ActionType.ADMIN_CHANGE, f"{word} client", detail=client.name, client=client)
     messages.success(request, f"{client.name} is now {'enabled' if client.is_active else 'disabled'}. "
                               f"{'' if client.is_active else 'Its users cannot sign in; data is kept.'}")
+    if request.POST.get("next") == "list":
+        return redirect("console:clients")
     return redirect("console:client_detail", client.pk)
 
 
