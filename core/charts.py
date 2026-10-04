@@ -7,43 +7,55 @@ from html import escape
 
 from django.utils.safestring import mark_safe
 
-from core.formatting import compact_inr, inr, pct
+from core.formatting import MINUS, compact, inr, pct
 
 
 def _f(v) -> float:
     return float(v or 0)
 
 
-def diverging_bars(buckets, height=220, width=680):
-    """buckets: [{"label", "shortage" (<=0), "excess" (>=0), "tip"}]. Shortage below zero (red), excess above (blue)."""
+def diverging_bars(buckets, height=250, width=640):
+    """buckets: [{"label", "shortage" (<=0), "excess" (>=0), "tip"}]. Shortage below zero (red), excess above (blue).
+
+    Same geometry as the reference prototype: one scale for both sides, at least 14px above the zero line.
+    """
     n = max(len(buckets), 1)
-    pad_l, pad_r, pad_t, pad_b = 52, 8, 10, 26
+    pad_l, pad_r, pad_t, pad_b = 58, 8, 16, 30
     plot_w, plot_h = width - pad_l - pad_r, height - pad_t - pad_b
-    top = max([_f(b["excess"]) for b in buckets] + [1])
-    bottom = max([abs(_f(b["shortage"])) for b in buckets] + [1])
-    span = top + bottom
-    zero_y = pad_t + plot_h * top / span
+    m_ex = max([_f(b["excess"]) for b in buckets] + [0])
+    m_sh = max([abs(_f(b["shortage"])) for b in buckets] + [0])
+    total = (m_ex + m_sh) or 1
+    up_h = max(plot_h * m_ex / total, 14)
+    dn_h = plot_h - up_h
+    zero_y = pad_t + up_h
+    unit = min(up_h / m_ex if m_ex else 1e18, dn_h / m_sh if m_sh else 1e18)
     slot = plot_w / n
-    bar_w = max(4.0, min(28.0, slot * 0.62))
-    parts = [f'<svg class="chart" viewBox="0 0 {width} {height}" role="img" aria-label="Shortage and excess by period">']
-    parts.append(f'<text x="{pad_l - 6}" y="{pad_t + 9}" text-anchor="end">{escape(compact_inr(top))}</text>')
-    parts.append(f'<text x="{pad_l - 6}" y="{pad_t + plot_h}" text-anchor="end">{escape(compact_inr(-bottom))}</text>')
+    bar_w = min(slot * 0.62, 46)
+    parts = [f'<svg class="chart" viewBox="0 0 {width} {height}" role="img" aria-label="Shortage and excess value over time">']
     parts.append(f'<line class="zero" x1="{pad_l}" x2="{width - pad_r}" y1="{zero_y:.1f}" y2="{zero_y:.1f}"/>')
-    every = max(1, round(n / 8))
+    parts.append(f'<text x="{pad_l - 8}" y="{zero_y + 4:.1f}" text-anchor="end">0</text>')
+    if m_ex:
+        parts.append(f'<text x="{pad_l - 8}" y="{pad_t + 4}" text-anchor="end">+{escape(compact(m_ex))}</text>')
+    if m_sh:
+        parts.append(f'<text x="{pad_l - 8}" y="{height - pad_b + 2}" text-anchor="end">{MINUS}{escape(compact(m_sh))}</text>')
     for i, b in enumerate(buckets):
-        x = pad_l + slot * i + (slot - bar_w) / 2
+        cx = pad_l + slot * i + slot / 2
+        x = cx - bar_w / 2
         tip = escape(b.get("tip", ""), quote=True)
         ex, sh = _f(b["excess"]), abs(_f(b["shortage"]))
+        parts.append(f'<g data-tip="{tip}" tabindex="0"><rect x="{cx - slot / 2:.1f}" y="{pad_t}" width="{slot:.1f}" '
+                     f'height="{plot_h}" fill="transparent"/>')
         if ex > 0:
-            h = plot_h * ex / span
-            parts.append(f'<rect class="bar-excess" x="{x:.1f}" y="{zero_y - h:.1f}" width="{bar_w:.1f}" height="{max(h, 1):.1f}" rx="2" data-tip="{tip}" tabindex="0"/>')
+            h = ex * unit
+            parts.append(f'<rect class="bar-excess" x="{x:.1f}" y="{zero_y - h:.1f}" width="{bar_w:.1f}" height="{h:.1f}" rx="2"/>')
         if sh > 0:
-            h = plot_h * sh / span
-            parts.append(f'<rect class="bar-short" x="{x:.1f}" y="{zero_y:.1f}" width="{bar_w:.1f}" height="{max(h, 1):.1f}" rx="2" data-tip="{tip}" tabindex="0"/>')
-        if ex == 0 and sh == 0:
-            parts.append(f'<rect x="{x:.1f}" y="{zero_y - 1:.1f}" width="{bar_w:.1f}" height="2" fill="transparent" data-tip="{tip}"/>')
-        if i % every == 0 or i == n - 1:
-            parts.append(f'<text x="{x + bar_w / 2:.1f}" y="{height - 8}" text-anchor="middle">{escape(b["label"])}</text>')
+            h = sh * unit
+            parts.append(f'<rect class="bar-short" x="{x:.1f}" y="{zero_y:.1f}" width="{bar_w:.1f}" height="{h:.1f}" rx="2"/>')
+        if not b.get("audits"):
+            parts.append(f'<line x1="{cx - 4:.1f}" x2="{cx + 4:.1f}" y1="{zero_y:.1f}" y2="{zero_y:.1f}" stroke="var(--muted)" stroke-width="2"/>')
+        parts.append("</g>")
+        if n <= 12 or i % 2 == (n - 1) % 2:
+            parts.append(f'<text x="{cx:.1f}" y="{height - 8}" text-anchor="middle">{escape(b["label"])}</text>')
     parts.append("</svg>")
     return mark_safe("".join(parts))
 

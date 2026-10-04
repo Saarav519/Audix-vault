@@ -11,8 +11,8 @@ One line each: what, and why.
 - Business numbers are computed in `core/calc.py` with `Decimal`; the audit stores a snapshot of totals, status and remark, refreshed on every save and whenever thresholds or the cycle change (recompute on change, not on read).
 - Temporary passwords are shown once in the HTTP response (not via Django messages, which could store them in a cookie).
 - The `.env` file is ignored by the test settings (`AUDIX_SKIP_DOTENV`) so tests never depend on local values.
-- Associated-with mark: `assets/` was not supplied, so a text chip "Associated with CA India | Vikas Kshitij & Associates, Chartered Accountants" is used; the x mark is the inline SVG from the brief.
-- `reference/audix-portal-demo.html` was not in the repo, so screens are built from the brief's design tokens and descriptions.
+- Brand assets come from `assets/` (served as `/static/brand/`): the "Associated with" PNG sits on a white chip on the login page and in the footer, and the x of the wordmark is read from `assets/x-mark.svg` and inlined so its dark half turns white on dark backgrounds.
+- Screens follow `reference/audix-portal-demo.html` for wording, spacing and colours. Deliberate differences: the login field says "Login ID" (staff sign in on the same page, so "Client ID" would mislead), the demo-only "Client view / Admin view" switch is not built, and Damage/WBC KPI changes stay in percentage points of stock value.
 - Health check path is exempt from the HTTPS redirect and `healthcheck.railway.app` is allowed automatically on Railway, so health checks do not loop.
 - Photos: GPS location is removed from the stored file on upload (other EXIF, including the date, is kept), so location can never reach clients. HEIC is converted to JPEG when `pillow-heif` is installed, otherwise HEIC is refused at upload.
 - Photo thumbnails are streamed through Django after a permission check (no presigned URL per thumbnail, so the activity log is not flooded); originals and every download use 10-minute presigned links that are logged.
@@ -36,3 +36,4 @@ One line each: what, and why.
 - Security warnings W019 (X-Frame-Options SAMEORIGIN, needed for the signoff preview) and W021 (HSTS preload) are silenced on purpose; W005 (HSTS include subdomains) stays visible and can be turned on with `SECURE_HSTS_INCLUDE_SUBDOMAINS=1` once the domain is final.
 - CI (GitHub Actions) runs ruff, pytest on PostgreSQL 16, pip-audit and `check --deploy --fail-level ERROR`.
 - `S3_UPLOAD_MODE=proxy` is the default: the browser posts to the app's signed upload endpoint and the app streams the file into the bucket (`upload_fileobj`), so Railway Buckets work without CORS. `direct` keeps the presigned POST. Downloads always use presigned GET links. Gunicorn's timeout is 120 seconds to give large proxied uploads time.
+- Sidebar highlighting: each nav item lists the paths it owns and can exclude paths (a leading "!"), so "Add audit" and "Audits" are never active together; tests check exactly one active item per page.

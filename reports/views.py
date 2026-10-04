@@ -18,7 +18,7 @@ from audits.models import Audit, AuditType, Shift
 from clients.models import Client, Store
 from core import calc, charts
 from core.calc import D
-from core.formatting import compact_inr, inr, pct, short_date
+from core.formatting import compact_inr, inr, pct, qty, short_date
 from core.permissions import portal_required
 from core.scoping import PortalScope
 from reports import queries
@@ -66,22 +66,22 @@ def base_ctx(request, client, scope, pickers, **kw):
     return {"client": client, "scope": scope, "picker_clients": pickers, "th": client.thresholds(), "cq": cq, **kw}
 
 
-def _change(cur, prev, lower_is_better=False):
+def _change(cur, prev, lower_is_better=False, cmp="previous period"):
     ch = calc.change_pct(cur, prev)
     if ch is None:
         return {"text": "No earlier data", "tone": "neutral"}
     if abs(ch) < D("0.5"):
-        return {"text": "No change", "tone": "neutral"}
-    arrow = "▼" if ch < 0 else "▲"
+        return {"text": f"No change vs {cmp}", "tone": "neutral"}
+    arrow = "\u25bc" if ch < 0 else "\u25b2"
     tone = "neutral"
     if lower_is_better:
         tone = "good" if ch < 0 else "bad"
-    return {"text": f"{arrow} {calc.round_dec(abs(ch), 0)}% vs previous", "tone": tone}
+    return {"text": f"{arrow} {calc.round_dec(abs(ch), 0)}% vs {cmp}", "tone": tone}
 
 
-def _change_pts(cur, prev):
+def _change_pts(cur, prev, cmp="previous period"):
     c = calc.change_pts(cur, prev)
-    return {"text": c.text if c.direction == "none" else f"{c.text} vs previous", "tone": c.tone}
+    return {"text": f"{c.text} vs {cmp}", "tone": c.tone}
 
 
 # ---------------------------------------------------------------- dashboard
@@ -108,41 +108,57 @@ def dashboard(request):
     bks = calc.buckets(period, t, first.year if first else None)
     series = queries.bucket_series(qs, bks)
     for b in series:
-        b["tip"] = (f"{b['label']}: shortage {inr(b['shortage'])}, excess {inr(b['excess'])}, "
-                    f"{b['audits']} audit{'s' if b['audits'] != 1 else ''}")
+        if b["audits"]:
+            b["tip"] = (f"{b['label']}: {b['audits']} audit{'s' if b['audits'] != 1 else ''}, "
+                        f"shortage {inr(abs(b['shortage']))}, excess {inr(b['excess'])}, "
+                        f"net {inr(b['shortage'] + b['excess'])}")
+        else:
+            b["tip"] = f"{b['label']}: no audits"
     chart = charts.diverging_bars(series)
+    window_text, previous_text = calc.WINDOW_TEXT[period], calc.PREVIOUS_TEXT[period]
 
     store_rows = queries.store_rows(cur_qs, stores, th)
+    for r in store_rows:
+        if r["audits"]:
+            r["bar_pct"] = min(abs(r["var_pct"]) / 4 * 100, 100)
+            r["tone"] = calc.STATUS_TONE[r["status"]]
     cats = queries.category_rows(cur_qs)
     due = queries.due_rows(qs, stores, t, client)
-    overdue = sum(1 for r in due if r["due"].kind == "overdue")
+    overdue = [r["store"].city or r["store"].name for r in due if r["due"].kind == "overdue"]
     healths = [r["health"] for r in store_rows if r["audits"]]
     insights = calc.insights(healths, cur["shortage"], prev["shortage"], overdue,
                              calc.Thresholds(th.good_pct, th.warn_pct, client.cycle_days, client.soon_days),
-                             calc.WINDOW_TEXT[period])
+                             window_text, previous_text)
     phys_total = cur["total_value"]
     breakup = [
         ("Good stock", cur["physical_value"], calc.pct_of(cur["physical_value"], phys_total), "var(--good)"),
         ("Damage", cur["damage_value"], calc.pct_of(cur["damage_value"], phys_total), "var(--warn)"),
-        ("WBC (without barcode)", cur["wbc_value"], calc.pct_of(cur["wbc_value"], phys_total), "var(--excess)"),
+        ("WBC (Without Barcode)", cur["wbc_value"], calc.pct_of(cur["wbc_value"], phys_total), "var(--excess)"),
     ]
+    vs = previous_text
     kpis = [
-        {"label": "Audits completed", "value": str(cur["audits"]), "change": _change(cur["audits"], prev["audits"])},
-        {"label": "Stock value", "value": compact_inr(cur["stock_value"]), "change": _change(cur["stock_value"], prev["stock_value"])},
-        {"label": "Total physical value", "value": compact_inr(cur["total_value"]), "change": _change(cur["total_value"], prev["total_value"])},
-        {"label": "Damage", "value": compact_inr(cur["damage_value"]), "sub": f"{pct(cur['damage_pct'])} of stock value",
-         "change": _change_pts(cur["damage_pct"], prev["damage_pct"])},
-        {"label": "WBC", "value": compact_inr(cur["wbc_value"]), "sub": f"{pct(cur['wbc_pct'])} of stock value",
-         "change": _change_pts(cur["wbc_pct"], prev["wbc_pct"])},
+        {"label": "Audits completed", "value": str(cur["audits"]), "change": _change(cur["audits"], prev["audits"], cmp=vs)},
+        {"label": "Stock value", "value": compact_inr(cur["stock_value"]), "sub": f"{qty(cur['stock_qty'])} units",
+         "change": _change(cur["stock_value"], prev["stock_value"], cmp=vs)},
+        {"label": "Total physical value", "value": compact_inr(cur["total_value"]), "sub": "Physical + damage + WBC",
+         "change": _change(cur["total_value"], prev["total_value"], cmp=vs)},
+        {"label": "Damage", "value": compact_inr(cur["damage_value"]),
+         "sub": f"{qty(cur['damage_qty'])} units, {pct(cur['damage_pct'])} of stock value",
+         "change": _change_pts(cur["damage_pct"], prev["damage_pct"], cmp=vs)},
+        {"label": "WBC (Without Barcode)", "value": compact_inr(cur["wbc_value"]),
+         "sub": f"{qty(cur['wbc_qty'])} units, {pct(cur['wbc_pct'])} of stock value",
+         "change": _change_pts(cur["wbc_pct"], prev["wbc_pct"], cmp=vs)},
         {"label": "Variance", "value": pct(cur["var_pct"]), "sub": "of stock value" + (
-            f" · {pct(cur['var_pct_sale'])} of sale value" if cur["var_pct_sale"] is not None else ""),
-         "change": _change_pts(cur["var_pct"], prev["var_pct"])},
+            f", {pct(cur['var_pct_sale'])} of sale value" if cur["var_pct_sale"] is not None else ""),
+         "change": _change_pts(cur["var_pct"], prev["var_pct"], cmp=vs)},
     ]
-    shortage_change = _change(abs(cur["shortage"]), abs(prev["shortage"]), lower_is_better=True)
+    shortage_change = _change(abs(cur["shortage"]), abs(prev["shortage"]), lower_is_better=True, cmp=vs)
+    recent = qs.filter(audit_date__gt=t - timedelta(days=7)).count()
+    latest = qs.select_related("store").order_by("-audit_date", "-created_at").first()
     ctx = base_ctx(request, client, scope, pickers, period=period, periods=calc.PERIOD_LABELS, window=(start, end),
-                   window_text=calc.WINDOW_TEXT[period], cur=cur, prev=prev, chart=chart, kpis=kpis,
+                   window_text=window_text, previous_text=previous_text, cur=cur, prev=prev, chart=chart, kpis=kpis,
                    store_rows=store_rows, cats=cats, breakup=breakup, insights=insights,
-                   shortage_change=shortage_change, overdue=overdue)
+                   shortage_change=shortage_change, overdue=len(overdue), recent=recent, latest=latest)
     return render(request, "portal/dashboard.html", ctx)
 
 

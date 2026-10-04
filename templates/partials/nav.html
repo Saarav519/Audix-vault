@@ -1,16 +1,14 @@
 {% load audix %}{% if in_client_mode %}
-{% if variant == "side" %}<div class="nav-label">Portal</div>{% endif %}
 <a class="nav-link" href="{% url 'portal:dashboard' %}" {% nav_current '/portal/dashboard' %}>{% icon "dashboard" %}<span>Dashboard</span></a>
-<a class="nav-link" href="{% url 'portal:audits' %}" {% nav_current '/portal/audits' '/audits/' %}>{% icon "list" %}<span>{% if variant == "tab" %}Audits{% else %}All audits{% endif %}</span></a>
 <a class="nav-link" href="{% url 'portal:tracker' %}" {% nav_current '/portal/tracker' %}>{% icon "calendar" %}<span>{% if variant == "tab" %}Tracker{% else %}Audit tracker{% endif %}</span></a>
 <a class="nav-link" href="{% url 'portal:aging' %}" {% nav_current '/portal/aging' %}>{% icon "clock" %}<span>{% if variant == "tab" %}Aging{% else %}Aging report{% endif %}</span></a>
 <a class="nav-link" href="{% url 'portal:compare' %}" {% nav_current '/portal/compare' %}>{% icon "compare" %}<span>Compare</span></a>
+<a class="nav-link" href="{% url 'portal:audits' %}" {% nav_current '/portal/audits' '/audits/' %}>{% icon "list" %}<span>{% if variant == "tab" %}Audits{% else %}All audits{% endif %}</span></a>
 {% elif user.is_staff_member %}
-{% if variant == "side" %}<div class="nav-label">Console</div>{% endif %}
-<a class="nav-link" href="{% url 'console:overview' %}" {% nav_current '/console/overview' %}>{% icon "home" %}<span>Overview</span></a>
-{% if user.is_admin %}<a class="nav-link" href="{% url 'console:clients' %}" {% nav_current '/console/clients' %}>{% icon "users" %}<span>Clients</span></a>{% endif %}
+<a class="nav-link" href="{% url 'console:overview' %}" {% nav_current '/console/overview' %}>{% icon "dashboard" %}<span>Overview</span></a>
+{% if user.is_admin %}<a class="nav-link" href="{% url 'console:clients' %}" {% nav_current '/console/clients' '/console/stores/' '/console/categories/' %}>{% icon "users" %}<span>Clients</span></a>{% endif %}
 <a class="nav-link" href="{% url 'audits:new' %}" {% nav_current '/console/audits/new' %}>{% icon "plus" %}<span>Add audit</span></a>
-<a class="nav-link" href="{% url 'audits:list' %}" {% nav_current '/console/audits/' '/audits/' %}>{% icon "list" %}<span>Audits</span></a>
+<a class="nav-link" href="{% url 'audits:list' %}" {% nav_current '/console/audits/' '/audits/' '!/console/audits/new' %}>{% icon "list" %}<span>Audits</span></a>
 <a class="nav-link" href="{% url 'portal:aging' %}" {% nav_current '/portal/aging' %}>{% icon "clock" %}<span>{% if variant == "tab" %}Aging{% else %}Aging report{% endif %}</span></a>
 {% if variant == "side" %}
 <a class="nav-link" href="{% url 'portal:compare' %}" {% nav_current '/portal/compare' %}>{% icon "compare" %}<span>Compare</span></a>

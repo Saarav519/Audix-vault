@@ -102,6 +102,7 @@ def category_rows(qs) -> list[dict]:
     m = max([abs(r["diff"]) for r in out] + [D(0)])
     for r in out:
         r["bar"] = int(abs(r["diff"]) / m * 90) if m else 0
+        r["bar_pct"] = round(float(abs(r["diff"]) / m * 100), 1) if m else 0
     return out
 
 

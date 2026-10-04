@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load audix %}
 {% block title %}Sign-in locked{% endblock %}
 {% block body %}
-<div class="login-page"><section class="login-brand on-dark"><span class="wordmark">{% wordmark %}</span><div class="tagline">Where Audits Meet <em>Exceptionalism</em></div></section>
-<section class="login-form"><div class="card"><h2>Too many attempts</h2><p>Sign-in is locked for 15 minutes after 5 failed attempts. Please try again later, or ask your Audix contact to reset your password.</p><a class="btn" href="{% url 'accounts:login' %}">Back to sign in</a></div></section></div>
+<div class="login-page"><section class="login-brand"><div class="lockup"><span class="lk-wm" aria-label="Audix">Audi{% xmark %}</span><div class="lk-sub">SOLUTIONS &amp; CO</div><div class="lk-tag">Where Audits Meet <em>Exceptionalism</em></div><div class="lk-line"></div></div></section>
+<section class="login-form"><form><h1>Too many attempts</h1><p class="hint">Sign-in is locked for 15 minutes after 5 failed attempts. Please try again later, or contact Audix Solutions &amp; Co for a new password.</p><a class="btn btn-primary" href="{% url 'accounts:login' %}">Back to sign in</a></form></section></div>
 {% endblock %}

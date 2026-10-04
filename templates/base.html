@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Montserrat:wght@500;600;700;800&display=swap">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
-  <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
+  <link rel="icon" href="{% static 'brand/x-mark.svg' %}" type="image/svg+xml">
   <script src="{% static 'js/theme.js' %}"></script>
   <script src="{% static 'js/htmx.min.js' %}" defer></script>
   <script src="{% static 'js/app.js' %}" defer></script>
@@ -31,35 +31,35 @@
       {% include "partials/nav.html" with variant="side" %}
     </nav>
     <div class="sidebar-foot">
-      <div class="tagline">Where Audits Meet <em>Exceptionalism</em></div>
-      <div>Audix Solutions &amp; Co</div>
+      <b>Audix Solutions &amp; Co</b><br>
+      <span class="tagline">Where Audits Meet <em>Exceptionalism</em></span>
+      <span style="display:block;margin-top:10px">Associated with Vikas Kshitij &amp; Associates, Chartered Accountants</span>
     </div>
   </aside>
   <div class="main">
     <header class="topbar">
       <a class="wordmark mobile-brand" href="{% url 'home' %}" aria-label="Audix Vault home">{% wordmark %}</a>
       {% if portal_client %}
-        <div class="cobrand">
-          {% if portal_client.logo_key %}<img src="{% url 'files:client_logo' portal_client.pk %}" alt="">{% endif %}
-          <span>{{ portal_client.name }}</span>
+        <div class="client-id">
+          <span class="mono" aria-hidden="true">{% if portal_client.logo_key %}<img src="{% url 'files:client_logo' portal_client.pk %}" alt="">{% else %}{{ client_initials }}{% endif %}</span>
+          <div><b>{{ portal_client.name }}</b><small>{{ client_summary }}</small></div>
         </div>
       {% elif user.is_staff_member %}
-        <div class="cobrand"><span>Audix console</span></div>
+        <div class="client-id">
+          <span class="mono ax" aria-hidden="true">AX</span>
+          <div><b>Admin console</b><small>Audix Solutions &amp; Co · {{ user.name|default:user.login_id }}</small></div>
+        </div>
       {% endif %}
-      <div class="spacer"></div>
       {% if in_client_mode %}
       <form class="search" role="search" method="get" action="{% url 'portal:audits' %}">
-        {% icon "search" %}
         <label class="sr-only" for="global-search">Search audits</label>
-        <input id="global-search" type="search" name="q" placeholder="Search store, date, reference" value="{{ request.GET.q|default:'' }}">
+        <input id="global-search" type="search" name="q" placeholder="Search store, date, audit type" value="{{ request.GET.q|default:'' }}">
       </form>
       {% endif %}
-      <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch light or dark mode">{% icon "moon" %}</button>
-      <div class="user-chip">
-        <span class="avatar" aria-hidden="true">{{ user.name|default:user.login_id|slice:":1"|upper }}</span>
-        <span class="who"><strong>{{ user.name|default:user.login_id }}</strong><br><span class="muted small">{{ user.get_role_display }}</span></span>
+      <div class="top-actions">
+        <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch light or dark mode">{% icon "moon" %}</button>
+        <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="icon-btn" type="submit" aria-label="Sign out" title="Sign out ({{ user.name|default:user.login_id }})">{% icon "logout" %}</button></form>
       </div>
-      <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="icon-btn" type="submit" aria-label="Sign out" title="Sign out">{% icon "logout" %}</button></form>
     </header>
     <main id="main" class="content" tabindex="-1">
       {% if messages %}<ul class="messages">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}

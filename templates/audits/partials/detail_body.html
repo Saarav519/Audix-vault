@@ -1,79 +1,77 @@
 {% load audix %}
 <div class="page-head">
   <div>
-    <h1>{{ audit.store.name }}{% if audit.store.city %}, {{ audit.store.city }}{% endif %}</h1>
-    <div class="meta-list">
-      <span>{{ audit.audit_date|fdate }}</span><span>{{ audit.get_audit_type_display }}</span><span>{{ audit.get_shift_display }} shift</span><span>{{ audit.reference }}</span><span>Store {{ audit.store.code }}</span>
-      {% status_pill audit.status_label %}
-      {% if not client_view %}{% if audit.is_draft %}{% status_pill "Draft" "neutral" %}{% endif %}{% if audit.edited_at %}<span class="tag">Edited {{ audit.edited_at|fdate }}</span>{% endif %}{% endif %}
-    </div>
+    <h1>{{ audit.store.city|default:audit.store.name }}{% if audit.store.city %}, {{ audit.store.name }}{% endif %}</h1>
+    <p>{{ audit.audit_date|date:"D" }}, {{ audit.audit_date|fdate }}, {{ audit.get_audit_type_display }}, {{ audit.get_shift_display }} shift</p>
+    <p class="hint num">{{ audit.reference }} · Store {{ audit.store.code }}
+      {% if not client_view %}{% if audit.is_draft %} {% status_pill "Draft" "neutral" %}{% endif %}{% if audit.edited_at %} <span class="tag">Edited {{ audit.edited_at|fdate }}</span>{% endif %}{% endif %}</p>
     {% if audit.is_full and audit.is_published %}
-    <p class="small" style="margin-top:6px">{% if audit.aging_days is None %}First full audit on record for this store.{% else %}{{ audit.aging_days }} days since the previous full audit, {% if audit.delay_days %}<span class="tone-bad">delayed by {{ audit.delay_days }} day{{ audit.delay_days|pluralize }}</span>{% else %}<span class="tone-good">on time</span>{% endif %}.{% endif %}</p>
+    <p class="hint">{% if audit.aging_days is None %}First full audit on record for this store.{% else %}{{ audit.aging_days }} days since the previous full audit, {% if audit.delay_days %}<span class="tone-bad">delayed by {{ audit.delay_days }} day{{ audit.delay_days|pluralize }}</span>{% else %}on time{% endif %}{% endif %}</p>
     {% endif %}
   </div>
   <div class="row no-print">
     {% if not client_view %}
       {% if audit.is_draft or user.is_admin %}<a class="btn" href="{% url 'audits:edit' audit.pk %}">Edit</a>{% endif %}
     {% endif %}
-    {% if has_files and not zip_too_big %}<a class="btn btn-primary" href="{% url 'audits:zip' audit.pk %}?what=all">{% icon "download" %} Download everything</a>{% endif %}
   </div>
 </div>
 
-<section class="card">
-  <h2>Auto remark</h2>
-  <p class="remark">{{ audit.remark }}</p>
-  {% if audit.note %}<p style="margin-top:8px"><strong>Note from Audix:</strong> {{ audit.note|linebreaksbr }}</p>{% endif %}
-</section>
+<div class="stack">
+<div class="remark {{ audit.status_tone }}"><small>Remark</small>{{ audit.remark }}
+  {% if audit.note %}<p style="margin:8px 0 0"><b>Note from Audix:</b> {{ audit.note|linebreaksbr }}</p>{% endif %}</div>
 
 {% if cmp %}
 <section class="card">
-  <div class="card-head"><h2>Compared with last audit</h2><a class="btn btn-sm" href="{% url 'portal:compare' %}?a={{ previous.pk }}&b={{ audit.pk }}{% if not client_view %}&client={{ audit.client_id }}{% endif %}">Open full comparison</a></div>
-  <p class="card-sub">Last audit: {{ previous.audit_date|fdate }} ({{ previous.reference }})</p>
-  <div class="sentences">{% for s in cmp.sentences|slice:":3" %}<p>{{ s }}</p>{% endfor %}</div>
-  <div class="table-wrap"><table class="table"><thead><tr><th>Measure</th><th class="num">Last audit</th><th class="num">This audit</th><th class="num">Change</th></tr></thead>
-  <tbody>{% for r in cmp.overall %}<tr><td>{{ r.label }}</td><td class="num">{{ r.a }}</td><td class="num">{{ r.b }}</td><td class="num tone-{{ r.change.tone }}">{{ r.change.text }}</td></tr>{% endfor %}</tbody></table></div>
+  <div class="card-head"><h2>Compared with last audit</h2><small>{{ previous.audit_date|fdate }}</small></div>
+  <div class="table-wrap"><table class="table" style="min-width:440px"><thead><tr><th></th><th class="num">Last audit</th><th class="num">This audit</th><th>Change</th></tr></thead>
+  <tbody>{% for r in cmp.overall %}{% if r.is_variance_row %}<tr><td>{{ r.label }}</td><td class="num">{{ r.a }}</td><td class="num">{{ r.b }}</td><td class="d tone-{{ r.change.tone }}">{{ r.change.text }}</td></tr>{% endif %}{% endfor %}</tbody></table></div>
+  {% if cmp.sentences|length > 1 %}<ul class="insights" style="margin-top:14px">{% for s in cmp.sentences|slice:"1:4" %}<li>{{ s }}</li>{% endfor %}</ul>{% endif %}
+  <p style="margin:14px 0 0"><a class="btn btn-sm" href="{% url 'portal:compare' %}?a={{ previous.pk }}&b={{ audit.pk }}{% if not client_view %}&client={{ audit.client_id }}{% endif %}">Open full comparison</a></p>
 </section>
 {% endif %}
 
 <section class="card">
-  <h2>Store summary</h2>
-  <div class="table-wrap"><table class="table">
-  <thead><tr><th></th><th class="num">Quantity</th><th class="num">Value</th></tr></thead>
+  <div class="table-wrap" style="margin-top:-18px"><table class="table" style="min-width:380px">
+  <thead><tr><th>Store summary</th><th class="num">Qty</th><th class="num">Value</th></tr></thead>
   <tbody>
     <tr><td>Stock</td><td class="num">{{ totals.stock_qty|qty }}</td><td class="num">{{ totals.stock_value|inr }}</td></tr>
     <tr><td>Physical (good stock)</td><td class="num">{{ totals.physical_qty|qty }}</td><td class="num">{{ totals.physical_value|inr }}</td></tr>
     <tr><td>Damage</td><td class="num">{{ totals.damage_qty|qty }}</td><td class="num">{{ totals.damage_value|inr }}</td></tr>
-    <tr><td>WBC (without barcode)</td><td class="num">{{ totals.wbc_qty|qty }}</td><td class="num">{{ totals.wbc_value|inr }}</td></tr>
-    <tr><td><strong>Total physical</strong></td><td class="num"><strong>{{ totals.total_physical_qty|qty }}</strong></td><td class="num"><strong>{{ totals.total_physical_value|inr }}</strong></td></tr>
-    <tr><td><strong>Difference</strong> ({% if totals.is_matched %}matched{% elif totals.is_shortage %}shortage{% else %}excess{% endif %})</td><td class="num {{ totals.diff_qty|money_class }}">{{ totals.diff_qty|qty }}</td><td class="num {{ totals.diff_value|money_class }}">{{ totals.diff_value|inr }}</td></tr>
-    <tr><td>Variance</td><td></td><td class="num">{{ totals.var_pct|pct }} of stock value</td></tr>
-    <tr><td>Sale value{% if sale_period %}<span class="sub">Sales from {{ sale_period }}</span>{% endif %}</td><td></td><td class="num">{% if audit.sale_value %}{{ audit.sale_value|inr }}{% else %}Not given{% endif %}</td></tr>
-    {% if audit.var_pct_sale is not None %}<tr><td>Variance</td><td></td><td class="num">{{ audit.var_pct_sale|pct }} of sale value</td></tr>{% endif %}
+    <tr><td>WBC (Without Barcode)</td><td class="num">{{ totals.wbc_qty|qty }}</td><td class="num">{{ totals.wbc_value|inr }}</td></tr>
+    <tr style="font-weight:600"><td>Total physical</td><td class="num">{{ totals.total_physical_qty|qty }}</td><td class="num">{{ totals.total_physical_value|inr }}</td></tr>
+    <tr style="font-weight:600"><td>Difference</td><td class="num {{ totals.diff_qty|money_class }}">{{ totals.diff_qty|qty }}</td><td class="num {{ totals.diff_value|money_class }}">{{ totals.diff_value|inr }}</td></tr>
+    <tr><td>Variance of stock value</td><td></td><td class="num">{% status_pill totals.var_pct|pct audit.status_tone %}</td></tr>
+    {% if audit.sale_value %}
+    <tr><td>Sale value, {% if sale_period %}{{ sale_period }}{% else %}since the last audit{% endif %}</td><td></td><td class="num">{{ audit.sale_value|inr }}</td></tr>
+    {% if audit.var_pct_sale is not None %}<tr><td>Variance of sale value</td><td></td><td class="num">{{ audit.var_pct_sale|pct }}</td></tr>{% endif %}
+    {% else %}
+    <tr><td>Sale value</td><td></td><td class="num muted">Not given</td></tr>
+    {% endif %}
   </tbody></table></div>
 </section>
 
 <section class="card">
-  <h2>Category-wise summary</h2>
-  <div class="table-wrap"><table class="table">
-  <thead><tr><th>Category</th><th class="num">Stock value</th><th class="num">Total physical</th><th class="num">Difference</th><th class="num">Var %</th><th class="num">Last audit stock</th><th class="num">Last audit difference</th><th class="num">Change in value</th><th>Status</th></tr></thead>
-  <tbody>{% for r in cat_rows %}<tr><td>{{ r.n.category }}</td><td class="num">{{ r.n.stock_value|inr }}</td><td class="num">{{ r.n.total_physical_value|inr }}</td>
-  <td class="num {{ r.n.diff_value|money_class }}">{{ r.n.diff_value|inr }}<span class="sub">{{ r.n.diff_qty|qty }} units</span></td><td class="num">{{ r.n.var_pct|pct }}</td>
-  <td class="num">{% if r.prev %}{{ r.prev.stock_value|inr }}{% else %}—{% endif %}</td><td class="num {{ r.prev.diff_value|money_class }}">{% if r.prev %}{{ r.prev.diff_value|inr }}{% else %}—{% endif %}</td>
-  <td class="num tone-{{ r.change.tone }}">{% if r.change %}{{ r.change.text }}{% else %}—{% endif %}</td><td>{% status_pill r.status %}</td></tr>{% endfor %}</tbody>
-  <tfoot><tr><td>Store total</td><td class="num">{{ totals.stock_value|inr }}</td><td class="num">{{ totals.total_physical_value|inr }}</td><td class="num {{ totals.diff_value|money_class }}">{{ totals.diff_value|inr }}</td><td class="num">{{ totals.var_pct|pct }}</td><td colspan="4"></td></tr></tfoot>
+  <div class="card-head"><h2>Category-wise summary</h2><small>Values in rupees</small></div>
+  <div class="table-wrap"><table class="table" style="min-width:920px">
+  <thead><tr><th>Category</th><th class="num">Stock</th><th class="num">Total physical</th><th class="num">Difference</th><th class="num">Var %</th><th class="num">Last audit stock</th><th class="num">Last audit difference</th><th>Change in value</th></tr></thead>
+  <tbody>{% for r in cat_rows %}<tr><td style="font-weight:500">{{ r.n.category }}</td><td class="num">{{ r.n.stock_value|inr }}</td><td class="num">{{ r.n.total_physical_value|inr }}</td>
+  <td class="num {{ r.n.diff_value|money_class }}">{{ r.n.diff_value|inr }}</td><td class="num">{{ r.n.var_pct|pct:1 }}</td>
+  {% if r.prev %}<td class="num">{{ r.prev.stock_value|inr }}</td><td class="num">{{ r.prev.diff_value|inr }}<span class="sub">{{ r.prev.var_pct|pct:1 }}</span></td>
+  <td class="d tone-{{ r.change.tone }}">{% if r.change %}{{ r.change.text }}{% endif %}</td>
+  {% else %}<td class="muted" colspan="3">First audit</td>{% endif %}</tr>{% endfor %}</tbody>
   </table></div>
 </section>
 
 <div class="grid grid-2">
 <section class="card">
-  <h2>Observations and recommendations</h2>
+  <div class="card-head"><h2>Observations and recommendations</h2><small>{{ observations|length }} noted</small></div>
   {% for o in observations %}
-  <div class="obs-card"><div class="row between"><strong>{{ o.category_label }}</strong><span class="row"><span class="tag">{{ o.get_kind_display }}</span>{% if o.severity == "high" %}{% status_pill "High" "bad" %}{% elif o.severity == "medium" %}{% status_pill "Medium" "warn" %}{% else %}{% status_pill "Low" "neutral" %}{% endif %}</span></div>
-  <p style="margin:6px 0">{{ o.text }}</p>{% if o.recommendation %}<p class="small" style="margin:0"><strong>Recommendation:</strong> {{ o.recommendation }}</p>{% endif %}</div>
+  <div class="obs-card"><div class="row" style="gap:8px;margin-bottom:6px"><strong>{{ o.category_label }}</strong><span class="row" style="gap:8px"><span class="tag">{{ o.get_kind_display }}</span>{% if o.severity == "high" %}{% status_pill "High" "bad" %}{% elif o.severity == "medium" %}{% status_pill "Medium" "warn" %}{% else %}{% status_pill "Low" "neutral" %}{% endif %}</span></div>
+  <p style="margin:6px 0">{{ o.text }}</p>{% if o.recommendation %}<p class="muted" style="margin:6px 0 0"><b style="color:var(--ink)">Recommendation:</b> {{ o.recommendation }}</p>{% endif %}</div>
   {% empty %}<p class="muted">No observation recorded.</p>{% endfor %}
 </section>
 <section class="card">
-  <h2>Follow-up on last audit</h2>
+  <div class="card-head"><h2>Follow-up on last audit</h2>{% if previous %}<small>Recommendations from {{ previous.audit_date|fdate }}</small>{% endif %}</div>
   {% for f in followups %}
   <div class="obs-card"><div class="row between"><strong>{{ f.previous_observation.category_label }}</strong>{% status_pill f.get_status_display f.tone %}</div>
   <p class="small" style="margin:6px 0 0">{{ f.previous_observation.recommendation }}</p>{% if f.note %}<p class="small muted" style="margin:4px 0 0">{{ f.note }}</p>{% endif %}</div>
@@ -82,35 +80,36 @@
 </div>
 
 <section class="card">
-  <h2>Signoff copy</h2>
+  <div class="card-head"><h2>Signoff copy</h2><small>Preview and download</small></div>
   {% for f in signoffs %}
-    <div class="row between" style="margin-bottom:8px"><span>{{ f.original_name }} <span class="muted small">({{ f.size_bytes|filesize }})</span></span><a class="btn btn-sm" href="{% url 'audits:download' audit.pk f.pk %}">{% icon "download" %} Download</a></div>
     {% if forloop.first %}{% if f.is_pdf %}<iframe class="preview-frame" title="Signoff copy preview" src="{% url 'audits:preview_file' audit.pk f.pk %}" loading="lazy"></iframe>{% else %}<img class="preview-img" src="{% url 'audits:preview_file' audit.pk f.pk %}" alt="Signoff copy" loading="lazy">{% endif %}{% endif %}
+    <p style="margin:10px 0 0"><a class="btn btn-sm" href="{% url 'audits:download' audit.pk f.pk %}">{% icon "download" %} Download signoff</a> <span class="hint">{{ f.original_name }}, {{ f.size_bytes|filesize }}</span></p>
   {% empty %}<p class="muted">{% if storage_ready %}No signoff copy attached yet.{% else %}File storage is not configured yet.{% endif %}</p>{% endfor %}
 </section>
 
 <section class="card">
-  <div class="card-head"><h2>Photographs</h2>{% if photos %}{% if photos_zip_too_big %}<span class="muted small">Too large for one ZIP (over 500 MB). Download photos one by one.</span>{% else %}<a class="btn btn-sm" href="{% url 'audits:zip' audit.pk %}?what=photos">{% icon "download" %} Download all as ZIP</a>{% endif %}{% endif %}</div>
+  <div class="card-head"><h2>Evidence photographs</h2><small>{{ photos|length }} photo{{ photos|length|pluralize }}</small></div>
   {% if photos %}
   <div class="photo-grid" data-lightbox-group>
     {% for p in photos %}<figure><button type="button" data-lightbox data-full="{% url 'audits:preview_file' audit.pk p.pk %}" data-download="{% url 'audits:download' audit.pk p.pk %}" data-caption="{{ p.caption|default:p.original_name }}" aria-label="Open photo {{ forloop.counter }}">{% if p.thumbnail_key %}<img src="{% url 'audits:thumb' audit.pk p.pk %}" alt="Photo {{ forloop.counter }}" loading="lazy">{% endif %}</button>
     <figcaption><span>{{ p.caption|default:p.original_name|truncatechars:22 }}</span><a href="{% url 'audits:download' audit.pk p.pk %}" aria-label="Download photo {{ forloop.counter }}">Download</a></figcaption></figure>{% endfor %}
   </div>
+  <p style="margin:12px 0 0">{% if photos_zip_too_big %}<span class="hint">Too large for one ZIP (over 500 MB). Download photos one by one.</span>{% else %}<a class="btn btn-sm" href="{% url 'audits:zip' audit.pk %}?what=photos">{% icon "download" %} Download all as ZIP</a>{% endif %}</p>
   {% else %}<p class="muted">No photographs attached.</p>{% endif %}
 </section>
 
 <section class="card">
-  <h2>Reports</h2>
-  <p class="card-sub">Download only. These files open in Excel or a PDF reader.</p>
+  <div class="card-head"><h2>Reports</h2><small>Download only</small></div>
   <ul class="file-list">
   {% for kind, label, items in reports %}
-    {% for f in items %}<li><span><strong>{{ label }}</strong> <span class="muted small">{{ f.original_name }} ({{ f.size_bytes|filesize }})</span></span><a class="btn btn-sm" href="{% url 'audits:download' audit.pk f.pk %}">{% icon "download" %} Download</a></li>
-    {% empty %}<li><span><strong>{{ label }}</strong></span><span class="muted small">Not attached</span></li>{% endfor %}
+    {% for f in items %}<li><span><b style="font-weight:500;display:block">{{ label }}</b><small class="muted">{{ f.original_name }}, {{ f.size_bytes|filesize }}</small></span><a class="btn btn-sm" href="{% url 'audits:download' audit.pk f.pk %}">{% icon "download" %} Download</a></li>
+    {% empty %}<li><span><b style="font-weight:500">{{ label }}</b></span><span class="muted small">Not attached</span></li>{% endfor %}
   {% endfor %}
   </ul>
-  {% if has_files %}<p style="margin-top:12px">{% if zip_too_big %}<span class="muted small">All files together are over 500 MB, so they cannot be downloaded as one ZIP.</span>{% else %}<a class="btn" href="{% url 'audits:zip' audit.pk %}?what=all">{% icon "download" %} Download everything (ZIP)</a>{% endif %}</p>{% endif %}
 </section>
+{% if has_files %}<p style="margin:0">{% if zip_too_big %}<span class="hint">All files together are over 500 MB, so they cannot be downloaded as one ZIP.</span>{% else %}<a class="btn" href="{% url 'audits:zip' audit.pk %}?what=all">{% icon "download" %} Download everything for this audit</a>{% endif %}</p>{% endif %}
 
 {% if edits %}
 <section class="card"><h2>History</h2><ul class="insights">{% for e in edits %}<li>{{ e.created_at|fdate }} {{ e.created_at|time:"H:i" }} · {{ e.user_label }} · {{ e.action }}{% if e.detail %}<span class="sub muted small">{{ e.detail|truncatechars:300 }}</span>{% endif %}</li>{% endfor %}</ul></section>
 {% endif %}
+</div>

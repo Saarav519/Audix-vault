@@ -1,4 +1,9 @@
+import re
+from functools import lru_cache
+from pathlib import Path
+
 from django import template
+from django.conf import settings
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
@@ -37,15 +42,36 @@ def icon(name, label=""):
     return mark_safe(f'<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"{aria}>{path}</svg>')
 
 
-XMARK = ('<svg class="xmark" viewBox="0 0 113 100" aria-hidden="true">'
-         '<polygon class="xd" points="113,0 79,0 45,50 79,100 113,100 79,50"/>'
-         '<polygon fill="#B9E10C" points="0,0 34,0 68,50 34,100 0,100 34,50"/></svg>')
+XMARK_FILE = Path(settings.BASE_DIR) / "assets" / "x-mark.svg"
+XMARK_FALLBACK = ('<polygon fill="#12180F" points="113,0 79,0 45,50 79,100 113,100 79,50"/>'
+                  '<polygon fill="#B9E10C" points="0,0 34,0 68,50 34,100 0,100 34,50"/>')
+
+
+@lru_cache(maxsize=1)
+def xmark_svg() -> str:
+    """The two-tone x from assets/x-mark.svg, inline so the dark half can turn white on dark backgrounds."""
+    try:
+        raw = XMARK_FILE.read_text()
+    except OSError:
+        raw = XMARK_FALLBACK
+    polys = re.findall(r"<polygon\b[^>]*/>", raw) or re.findall(r"<polygon\b[^>]*/>", XMARK_FALLBACK)
+    out = []
+    for poly in polys:
+        poly = re.sub(r'\s(?:fill|class)="[^"]*"', "", poly)
+        cls = "xl" if "0,0 34,0" in poly else "xd"
+        out.append(poly.replace("<polygon", f'<polygon class="{cls}"', 1))
+    return '<svg class="xmark" viewBox="0 0 113 100" aria-hidden="true">' + "".join(out) + "</svg>"
+
+
+@register.simple_tag
+def xmark():
+    return mark_safe(xmark_svg())
 
 
 @register.simple_tag
 def wordmark(vault=True):
     v = '<span class="vault">Vault</span>' if vault else ""
-    return mark_safe(f'<span class="audix">Audi{XMARK}</span><span class="sr-only">x</span>{v}')
+    return mark_safe(f'<span class="audix" aria-label="Audix">Audi{xmark_svg()}</span>{v}')
 
 
 @register.filter
@@ -146,8 +172,10 @@ def get_item(mapping, key):
 @register.simple_tag(takes_context=True)
 def nav_current(context, *prefixes):
     path = context["request"].path
+    if any(path.startswith(p[1:]) for p in prefixes if p.startswith("!")):
+        return ""
     for p in prefixes:
-        if path == p or (p != "/" and path.startswith(p)):
+        if not p.startswith("!") and (path == p or (p != "/" and path.startswith(p))):
             return mark_safe('aria-current="page"')
     return ""
 

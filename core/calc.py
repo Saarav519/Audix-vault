@@ -408,6 +408,12 @@ class Period:
         return f"Calendar year {self.year}"
 
     @property
+    def long_label(self) -> str:
+        if self.kind == "fy":
+            return f"{self.label} (Apr {self.year} to Mar {self.year + 1})"
+        return self.label
+
+    @property
     def key(self) -> str:
         return f"{self.kind}-{self.year}"
 
@@ -630,12 +636,20 @@ def categories_above(data: AuditData, th: Thresholds) -> list[str]:
     return [name for name, n in data.lines.items() if abs(n.var_pct) > th.warn_pct]
 
 
+NEUTRAL_ROWS = ("Stock value audited", "Total physical value", "Sale value")
+
+
 @dataclass
 class OverallRow:
     label: str
     a: str
     b: str
     change: Change
+
+    @property
+    def is_variance_row(self):
+        """Rows shown in the short 'Compared with last audit' table on the audit page."""
+        return self.label not in NEUTRAL_ROWS
 
 
 @dataclass
@@ -726,7 +740,7 @@ def compare(a: AuditData, b: AuditData, th: Thresholds | None = None) -> Compari
         ch = (change_money_neutral(a.sale_value, b.sale_value)
               if has_sale(a.sale_value) and has_sale(b.sale_value) else Change("Not comparable", "na", "neutral"))
         overall.append(OverallRow("Sale value", sa, sb, ch))
-    overall.append(OverallRow("Net variance (₹)", inr(ta.diff_value), inr(tb.diff_value),
+    overall.append(OverallRow("Net variance", inr(ta.diff_value), inr(tb.diff_value),
                               change_abs_relative(ta.diff_value, tb.diff_value)))
     overall.append(OverallRow("Variance % of stock value", pct(ta.var_pct), pct(tb.var_pct),
                               change_pts(ta.var_pct, tb.var_pct)))
@@ -737,7 +751,7 @@ def compare(a: AuditData, b: AuditData, th: Thresholds | None = None) -> Compari
                                   pct(vb) if vb is not None else "Not given", ch))
     overall.append(OverallRow("Damage", money_pct_text(ta.damage_value, ta.damage_pct),
                               money_pct_text(tb.damage_value, tb.damage_pct), change_pts(ta.damage_pct, tb.damage_pct)))
-    overall.append(OverallRow("WBC (without barcode)", money_pct_text(ta.wbc_value, ta.wbc_pct),
+    overall.append(OverallRow("WBC (Without Barcode)", money_pct_text(ta.wbc_value, ta.wbc_pct),
                               money_pct_text(tb.wbc_value, tb.wbc_pct), change_pts(ta.wbc_pct, tb.wbc_pct)))
     ca, cb = len(categories_above(a, th)), len(categories_above(b, th))
     overall.append(OverallRow(f"Categories above {plain_pct(th.warn_pct)}", str(ca), str(cb), change_count(ca, cb)))
@@ -890,7 +904,9 @@ def suggest_drafts(audit_id, lines, templates: dict | None = None) -> list[dict]
 
 WINDOW_DAYS = {"daily": 7, "weekly": 28, "monthly": 90, "yearly": 365}
 PERIOD_LABELS = {"daily": "Daily", "weekly": "Weekly", "monthly": "Monthly", "yearly": "Yearly"}
-WINDOW_TEXT = {"daily": "last 7 days", "weekly": "last 28 days", "monthly": "last 90 days", "yearly": "last 365 days"}
+WINDOW_TEXT = {"daily": "last 7 days", "weekly": "last 4 weeks", "monthly": "last 3 months", "yearly": "last 12 months"}
+PREVIOUS_TEXT = {"daily": "previous 7 days", "weekly": "previous 4 weeks", "monthly": "previous 3 months",
+                 "yearly": "previous 12 months"}
 
 
 def window(period: str, today: date) -> tuple[date, date]:
@@ -971,41 +987,60 @@ class StoreHealth:
         return pct_of(self.wbc_value, self.stock_value)
 
 
-def insights(stores: list[StoreHealth], shortage_now, shortage_prev, overdue_count: int,
-             th: Thresholds, window_text: str) -> list[dict]:
-    """'What stands out': plain sentences. Each item: text, tone, link (optional key)."""
+def _b(text):
+    return {"t": text, "b": True}
+
+
+def _t(text):
+    return {"t": text, "b": False}
+
+
+def insight_text(item) -> str:
+    """Plain text of an insight (for emails, exports and tests)."""
+    return "".join(p["t"] for p in item["parts"])
+
+
+def insights(stores: list[StoreHealth], shortage_now, shortage_prev, overdue_places: list[str],
+             th: Thresholds, window_text: str, previous_text: str = "previous period") -> list[dict]:
+    """'What stands out': short sentences with a bold lead. Each item: parts [{t, b}], tone, link (optional)."""
     out = []
     audited = [s for s in stores if s.audits]
-    short = [s for s in audited if s.diff_value < 0]
-    if short:
-        s = min(short, key=lambda x: x.diff_value)
-        out.append({"text": f"{s.store_name}, {s.city} had the largest shortage: {inr(abs(s.diff_value))} "
-                            f"({pct(abs(s.var_pct))} of stock value).", "tone": "bad"})
-    ch = change_pct(abs(D(shortage_now)), abs(D(shortage_prev)))
-    if ch is not None and abs(ch) >= 1:
-        word = "down" if ch < 0 else "up"
-        out.append({"text": f"Shortage is {word} {round_dec(abs(ch), 0)}% compared with the previous period.",
-                    "tone": "good" if ch < 0 else "bad"})
-    above = [s for s in audited if abs(s.var_pct) > th.warn_pct]
+    warn = plain_pct(th.warn_pct)
     if audited:
+        worst = min(audited, key=lambda x: x.diff_value)
+        if worst.diff_value < 0:
+            out.append({"parts": [_b(f"{worst.city or worst.store_name} ({worst.store_name})"),
+                                  _t(f" has the largest shortage in the {window_text}: {inr(abs(worst.diff_value))}, "
+                                     f"{round_dec(abs(worst.var_pct), 1)}% of its stock value.")], "tone": "bad"})
+    ch = change_pct(abs(D(shortage_now)), abs(D(shortage_prev)))
+    if ch is not None:
+        word = "down" if ch <= 0 else "up"
+        out.insert(min(1, len(out)), {"parts": [_t("Shortage is "), _b(f"{word} {round_dec(abs(ch), 0)}%"),
+                                               _t(f" compared with the {previous_text}.")],
+                                     "tone": "good" if ch <= 0 else "bad"})
+    if audited:
+        above = [s for s in audited if abs(s.var_pct) > th.warn_pct]
         if above:
-            noun = "store is" if len(above) == 1 else "stores are"
-            out.append({"text": f"{len(above)} {noun} above the Watch threshold of {plain_pct(th.warn_pct)}.",
-                        "tone": "warn"})
+            verb = "is" if len(above) == 1 else "are"
+            out.append({"parts": [_b(f"{len(above)} of {len(audited)} audited stores"),
+                                  _t(f" {verb} above {warn} variance and need review.")], "tone": "warn"})
         else:
-            out.append({"text": f"No store is above the Watch threshold of {plain_pct(th.warn_pct)}.", "tone": "good"})
+            out.append({"parts": [_b("All audited stores"), _t(f" are within {warn} variance.")], "tone": "good"})
         best = min(audited, key=lambda x: abs(x.var_pct))
-        out.append({"text": f"{best.store_name}, {best.city} is the best store at {pct(best.var_pct)} "
-                            f"of stock value.", "tone": "good"})
+        out.append({"parts": [_b(best.city or best.store_name),
+                              _t(f" is the best performing store at {round_dec(abs(best.var_pct), 1)}% variance.")],
+                    "tone": "good"})
         wbc = max(audited, key=lambda x: x.wbc_pct)
         if wbc.wbc_pct > 0:
-            out.append({"text": f"{wbc.store_name}, {wbc.city} has the highest WBC share at "
-                                f"{pct(wbc.wbc_pct)} of stock value.", "tone": "warn"})
+            out.append({"parts": [_t("Highest WBC (without barcode) share is at "), _b(wbc.city or wbc.store_name),
+                                  _t(f": {round_dec(wbc.wbc_pct, 2)}% of stock value. "
+                                     "Barcode labelling there is worth checking.")], "tone": "warn"})
     else:
-        out.append({"text": f"No audits in the {window_text}.", "tone": "neutral"})
-    if overdue_count:
-        noun = "store is" if overdue_count == 1 else "stores are"
-        out.append({"text": f"{overdue_count} {noun} past the {th.cycle_days}-day audit cycle.",
+        out.append({"parts": [_t(f"No audits in the {window_text}.")], "tone": "neutral"})
+    if overdue_places:
+        n = len(overdue_places)
+        out.append({"parts": [_b(f"{n} store is" if n == 1 else f"{n} stores are"),
+                              _t(f" past the {th.cycle_days}-day full audit cycle: {', '.join(overdue_places)}. ")],
                     "tone": "bad", "link": "aging"})
     return out
 

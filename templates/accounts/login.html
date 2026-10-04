@@ -1,32 +1,31 @@
-{% extends "base.html" %}{% load audix %}
+{% extends "base.html" %}{% load audix static %}
 {% block title %}Sign in{% endblock %}
 {% block body %}
 <div class="login-page">
-  <section class="login-brand on-dark">
-    <span class="wordmark">{% wordmark %}</span>
-    <div>
-      <h1>Every audit, every report, whenever you need it.</h1>
-      <p>Audix Vault keeps your stock audit summaries, signoff copies, photographs and reports in one private place. Sign in to see your dashboard, compare audits and check your audit cycle.</p>
-      <div class="tagline">Where Audits Meet <em>Exceptionalism</em></div>
+  <section class="login-brand" aria-label="Audix Solutions &amp; Co">
+    <div class="lockup">
+      <span class="lk-wm" aria-label="Audix">Audi{% xmark %}</span>
+      <div class="lk-sub">SOLUTIONS &amp; CO</div>
+      <div class="lk-tag">Where Audits Meet <em>Exceptionalism</em></div>
+      <div class="lk-line"></div>
     </div>
-    {% include "partials/assoc.html" %}
+    <div class="assoc"><span>Associated with</span><img src="{% static 'brand/associated-with-ca-india-vkna.png' %}" alt="CA India. Vikas Kshitij &amp; Associates, Chartered Accountants" width="551" height="110"></div>
   </section>
   <section class="login-form">
-    <div class="card">
-      <h2>Sign in</h2>
-      <p class="muted small">Use the login ID and password shared by Audix Solutions &amp; Co.</p>
-      {% if messages %}<ul class="messages">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
-      <form method="post" novalidate>
-        {% csrf_token %}
-        {% if form.non_field_errors %}<ul class="messages"><li class="error" role="alert">{{ form.non_field_errors.0 }}</li></ul>{% endif %}
-        <div class="field"><label for="id_username">Login ID</label>{{ form.username }}</div>
-        <div class="field"><label for="id_password">Password</label>{{ form.password }}</div>
-        <input type="hidden" name="next" value="{{ next }}">
-        <button class="btn btn-primary" type="submit" style="width:100%">Sign in</button>
-      </form>
-      <p class="muted small" style="margin-top:14px">Forgot your password? Ask your Audix contact to reset it.</p>
-      <div class="row between" style="margin-top:18px"><span class="muted small">Powered by Audix Solutions &amp; Co</span><button class="linkish small" type="button" data-theme-toggle>Light / dark</button></div>
-    </div>
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <div>
+        <h1>Welcome to Audix Vault</h1>
+        <p class="hint" style="margin-top:8px">Your audit summaries, sign-offs and evidence photographs, available whenever you need them.</p>
+      </div>
+      {% if messages %}<ul class="messages" style="margin:0">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
+      {% if form.non_field_errors %}<ul class="messages" style="margin:0"><li class="error" role="alert">{{ form.non_field_errors.0 }}</li></ul>{% endif %}
+      <div><label for="id_username">Login ID</label>{{ form.username }}</div>
+      <div><label for="id_password">Password</label>{{ form.password }}</div>
+      <input type="hidden" name="next" value="{{ next }}">
+      <button class="btn btn-primary" type="submit">Sign in</button>
+      <p class="hint">Forgot your password? Contact Audix Solutions &amp; Co and we will issue a new one.</p>
+    </form>
   </section>
 </div>
 {% endblock %}
