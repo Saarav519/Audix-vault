@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 113 100" width="113" height="100">
+  <!-- Audix "x": black right half, lime left half on top. Use fill #12180F (or #FFFFFF on dark) for the black half. -->
+  <polygon fill="#12180F" points="113,0 79,0 45,50 79,100 113,100 79,50"/>
+  <polygon fill="#B9E10C" points="0,0 34,0 68,50 34,100 0,100 34,50"/>
+</svg>
