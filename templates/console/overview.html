@@ -13,7 +13,7 @@
 </section>
 <section class="card" aria-labelledby="act-h">
   <div class="card-head"><h2 id="act-h">Recent activity</h2>{% if user.is_admin %}<a class="btn btn-sm" href="{% url 'console:activity' %}">Activity log</a>{% endif %}</div>
-  <ul class="insights">{% for e in activity %}<li><span class="small">{{ e.created_at|fdate }} {{ e.created_at|time:"H:i" }}</span><br><strong>{{ e.user_label|default:"System" }}</strong> {{ e.action|lower }}{% if e.audit %} · {{ e.audit.reference }}{% endif %}</li>{% empty %}<li class="muted">Nothing yet.</li>{% endfor %}</ul>
+  <ul class="insights activity-scroll" tabindex="0" role="region" aria-label="Recent activity list">{% for e in activity %}<li><span class="small">{{ e.created_at|fdate }} {{ e.created_at|time:"H:i" }}</span><br><strong>{{ e.user_label|default:"System" }}</strong> {{ e.action|lower }}{% if e.audit %} · {{ e.audit.reference }}{% endif %}</li>{% empty %}<li class="muted">Nothing yet.</li>{% endfor %}</ul>
 </section>
 </div>
 <section class="card" style="margin-top:16px" aria-labelledby="wf-h">

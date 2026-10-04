@@ -77,6 +77,6 @@ def overview(request):
         c.completeness = round((c.recent - incomplete) / c.recent * 100) if c.recent else None
     ctx = {
         "kpis": kpis, "clients": clients, "waiting": waiting[:25], "waiting_total": len(waiting),
-        "activity": ActivityLog.objects.select_related("audit")[:15],
+        "activity": ActivityLog.objects.select_related("audit")[:30],
     }
     return render(request, "console/overview.html", ctx)

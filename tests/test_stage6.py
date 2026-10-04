@@ -185,3 +185,16 @@ def test_pdf_uses_bundled_dejavu(monkeypatch):
     assert exports.pdf_text("₹5,000") == "₹5,000"
     data = exports.build_pdf(lambda: [exports.paragraph("Net −₹5,000")], "Client", "Test", "FY 2026-27")
     assert data.startswith(b"%PDF") and b"DejaVuSans" in data
+
+
+def test_overview_activity_scrolls_and_caps_at_30(data, admin):
+    from activity.log import log
+
+    for i in range(40):
+        log(None, "view", f"Viewed thing {i}", user=admin)
+    html = http_for(admin).get(reverse("console:overview")).content.decode()
+    assert 'class="insights activity-scroll" tabindex="0" role="region" aria-label="Recent activity list"' in html
+    listing = html.split('aria-label="Recent activity list">', 1)[1].split("</ul>", 1)[0]
+    assert 0 < listing.count("<li") <= 30
+    card = html.split('id="act-h"', 1)[1].split("</section>", 1)[0]
+    assert card.index("Activity log</a>") < card.index("activity-scroll")  # header stays outside the list

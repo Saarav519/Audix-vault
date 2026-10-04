@@ -392,3 +392,10 @@ dialog.modal form { margin: 0; }
 .modal-body { padding: 10px 20px 4px; }
 .modal-body .messages { margin: 0 0 12px; }
 .modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px 18px; border-top: 1px solid var(--line); }
+
+/* admin overview: recent activity scrolls inside its card */
+.activity-scroll { max-height: 380px; overflow-y: auto; padding-right: 10px;
+  scrollbar-gutter: stable; scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent; overscroll-behavior: contain; }
+.activity-scroll:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: 4px; }
+@media (max-width: 860px) { .activity-scroll { max-height: 320px; } }
