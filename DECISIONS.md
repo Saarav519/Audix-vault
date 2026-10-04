@@ -37,3 +37,4 @@ One line each: what, and why.
 - CI (GitHub Actions) runs ruff, pytest on PostgreSQL 16, pip-audit and `check --deploy --fail-level ERROR`.
 - `S3_UPLOAD_MODE=proxy` is the default: the browser posts to the app's signed upload endpoint and the app streams the file into the bucket (`upload_fileobj`), so Railway Buckets work without CORS. `direct` keeps the presigned POST. Downloads always use presigned GET links. Gunicorn's timeout is 120 seconds to give large proxied uploads time.
 - Sidebar highlighting: each nav item lists the paths it owns and can exclude paths (a leading "!"), so "Add audit" and "Audits" are never active together; tests check exactly one active item per page.
+- `bootstrap_admin` recovery (`ADMIN_RESET_PASSWORD=1`) runs before the "admin exists" check, only touches an Admin-role login, re-enables it, forces a password change, clears axes lockouts for that login ID (any case) and writes an activity-log row; the password is never printed.

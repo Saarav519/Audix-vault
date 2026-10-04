@@ -66,6 +66,7 @@ Tests need no internet: S3 is faked with `moto` and email uses Django's in-memor
 | `ADMIN_LOGIN_ID`, `ADMIN_INITIAL_PASSWORD` | first deploy | — | `bootstrap_admin` creates this admin if no admin exists |
 | `ADMIN_NAME`, `ADMIN_EMAIL` | no | `Audix Admin` | First admin's details |
 | `ADMIN_FORCE_PASSWORD_CHANGE` | no | `1` | `0` skips the forced change at first login |
+| `ADMIN_RESET_PASSWORD` | no | — | Recovery only. `1` resets the password of the admin named by `ADMIN_LOGIN_ID` to `ADMIN_INITIAL_PASSWORD` on the next start (see "Forgot the admin password"). Delete it afterwards |
 | `ALLOW_DEMO_SEED` | no | `0` | `1` lets `seed_demo` run when `DEBUG=0` |
 | `DEMO_CLIENT_PASSWORD` | for demo data | — | Password of the demo logins `greenfield` and `urbanmart` |
 | `DEMO_AUDITOR_PASSWORD` | no | — | Creates a demo auditor login `auditor` |
@@ -115,6 +116,16 @@ Without a bucket the app still works: upload areas say "File storage is not conf
 | `0 3 1 * *` (1st of the month) | `python manage.py send_monthly_summaries` |
 
 Restore with `python manage.py restore_database --yes` (latest backup) or `--key db/audix-YYYYMMDD-HHMMSS.sql.gz`.
+
+### Forgot the admin password
+
+1. In Railway, open the web service → **Variables**.
+2. Set `ADMIN_RESET_PASSWORD` = `1`, and set `ADMIN_INITIAL_PASSWORD` to a new strong temporary password. `ADMIN_LOGIN_ID` must be the admin's login ID (any letter case).
+3. Redeploy. On start, `bootstrap_admin` sets that admin's password, re-enables the login, clears any sign-in lockout and asks for a new password at the next sign-in. The log shows `bootstrap_admin: password reset for '<login id>'`; the password is never printed.
+4. Sign in with the temporary password and choose a new one.
+5. **Delete `ADMIN_RESET_PASSWORD`** from Variables. While it is set, every restart resets the password again.
+
+It only works for a login with the Admin role; client and auditor passwords are reset from the console.
 
 ## First client
 

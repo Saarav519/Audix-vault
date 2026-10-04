@@ -220,3 +220,76 @@ def test_settings_change(admin_client):
     from core.models import AppSettings
 
     assert str(AppSettings.load().good_pct) == "1.50"
+
+
+# ---------------------------------------------------------------- bootstrap_admin password recovery
+
+
+def _reset_env(monkeypatch, login="BOSS", password="Brand-new-admin-pass-9", flag="1"):
+    monkeypatch.setenv("ADMIN_RESET_PASSWORD", flag)
+    monkeypatch.setenv("ADMIN_LOGIN_ID", login)
+    monkeypatch.setenv("ADMIN_INITIAL_PASSWORD", password)
+
+
+def test_bootstrap_admin_resets_password(monkeypatch, admin, capsys):
+    from axes.models import AccessAttempt
+    from django.core.management import call_command
+
+    User.objects.filter(pk=admin.pk).update(is_active=False, must_change_password=False)
+    AccessAttempt.objects.create(username="Boss", ip_address="10.0.0.1", user_agent="x", failures_since_start=5,
+                                 get_data="", post_data="", http_accept="", path_info="/accounts/login/")
+    _reset_env(monkeypatch)
+    call_command("bootstrap_admin")
+    out = capsys.readouterr().out
+    assert "bootstrap_admin: password reset for 'boss'" in out
+    assert "Brand-new-admin-pass-9" not in out
+    admin.refresh_from_db()
+    assert admin.check_password("Brand-new-admin-pass-9")
+    assert admin.is_active and admin.must_change_password
+    assert not AccessAttempt.objects.filter(username__iexact="boss").exists()
+    assert User.objects.filter(role=Role.ADMIN).count() == 1
+
+
+def test_reset_lets_a_locked_out_admin_sign_in(monkeypatch, client, admin, password):
+    from django.core.management import call_command
+
+    for _ in range(5):
+        login(client, "boss", "wrong-password")
+    assert login(client, "boss", password).status_code in (403, 429)  # locked
+    _reset_env(monkeypatch)
+    call_command("bootstrap_admin")
+    r = login(client, "boss", "Brand-new-admin-pass-9")
+    assert r.status_code == 302 and "_auth_user_id" in client.session
+    assert client.get(reverse("console:overview"))["Location"] == reverse("accounts:password_change")
+
+
+def test_reset_needs_flag_exactly_1(monkeypatch, admin, password):
+    from django.core.management import call_command
+
+    _reset_env(monkeypatch, flag="0")
+    call_command("bootstrap_admin")
+    admin.refresh_from_db()
+    assert admin.check_password(password)
+
+
+def test_reset_ignores_non_admin_and_unknown(monkeypatch, user_a, admin, password, capsys):
+    from django.core.management import call_command
+
+    _reset_env(monkeypatch, login="alpha")  # a client login, not an admin
+    call_command("bootstrap_admin")
+    user_a.refresh_from_db()
+    assert user_a.check_password(password)
+    _reset_env(monkeypatch, login="nobody")
+    call_command("bootstrap_admin")
+    assert "Brand-new-admin-pass-9" not in capsys.readouterr().out + capsys.readouterr().err
+    assert User.objects.filter(role=Role.ADMIN).count() == 1
+
+
+def test_reset_without_an_admin_falls_back_to_first_admin(monkeypatch):
+    from django.core.management import call_command
+
+    _reset_env(monkeypatch, login="owner")
+    call_command("bootstrap_admin")
+    # the reset finds no admin, so the normal first-admin path creates one
+    u = User.objects.get(role=Role.ADMIN)
+    assert u.login_id == "owner" and u.check_password("Brand-new-admin-pass-9")
