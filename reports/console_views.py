@@ -6,11 +6,15 @@ from django.db.models import Count, Max, Q
 from django.shortcuts import render
 from django.utils import timezone
 
+from django.urls import reverse
+
 from accounts.models import CLIENT_ROLES
 from activity.models import ActionType, ActivityLog
 from audits.models import Audit, AuditStatus, FileKind
 from clients.models import Client, Store
+from core import calc
 from core.permissions import staff_required
+from reports import queries
 
 REQUIRED_FILES = [(FileKind.SIGNOFF, "Signoff"), (FileKind.PHOTO, "Photographs"),
                   (FileKind.AUDIT_EXCEL, "Audit Excel"), (FileKind.VARIANCE_REPORT, "Variance report")]
@@ -34,6 +38,29 @@ def waiting_for_files(qs=None, days=180):
         a.missing = [label for k, label in REQUIRED_FILES if getattr(a, f"n_{k}") == 0]
         out.append(a)
     return out
+
+
+def client_summary(clients, published, window, today):
+    """Client-wise figures for the chosen period: audits, stores audited, shortage, excess, net and
+    variance (same totals as the client dashboard), plus stores overdue for a full audit today."""
+    rows = []
+    in_window = published.filter(audit_date__gte=window.start, audit_date__lte=window.end)
+    for c in clients.order_by("name"):
+        qs = in_window.filter(client=c)
+        t = queries.window_totals(qs)
+        stores = list(Store.objects.filter(client=c, is_active=True).order_by("code"))
+        due = queries.due_rows(published.filter(client=c), stores, today, c)
+        th = c.thresholds()
+        status = calc.status_for(t["var_pct"], th) if t["audits"] else None
+        rows.append({
+            "client": c, "t": t, "stores_audited": qs.values("store_id").distinct().count(),
+            "stores_total": len(stores), "overdue": sum(1 for r in due if r["due"].kind == "overdue"),
+            "status": status, "tone": calc.STATUS_TONE.get(status, "neutral") if status else "neutral",
+            "dashboard": reverse("portal:dashboard") + f"?client={c.pk}",
+        })
+    total = queries.window_totals(in_window)
+    return {"rows": rows, "total": total, "overdue": sum(r["overdue"] for r in rows),
+            "stores_audited": sum(r["stores_audited"] for r in rows), "stores_total": sum(r["stores_total"] for r in rows)}
 
 
 @staff_required
@@ -75,7 +102,10 @@ def overview(request):
     for c in clients:
         incomplete = waiting_by_client.get(c.pk, 0)
         c.completeness = round((c.recent - incomplete) / c.recent * 100) if c.recent else None
+    window = calc.overview_window(request.GET.get("op", "month"), today)
+    summary = client_summary(active_clients, published, window, today)
     ctx = {
+        "window": window, "overview_periods": calc.OVERVIEW_PERIODS, "summary": summary,
         "kpis": kpis, "clients": clients, "waiting": waiting[:25], "waiting_total": len(waiting),
         "activity": ActivityLog.objects.select_related("audit")[:30],
     }

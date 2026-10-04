@@ -1126,6 +1126,45 @@ def window(period: str, today: date) -> tuple[date, date]:
     return today - timedelta(days=n - 1), today
 
 
+@dataclass(frozen=True)
+class OverviewWindow:
+    key: str
+    label: str
+    start: date
+    end: date
+    text: str  # "1 Oct 2026 to 4 Oct 2026"
+
+
+OVERVIEW_PERIODS = [("today", "Today"), ("week", "Last 7 days"), ("month", "This month"),
+                    ("quarter", "This quarter"), ("fy", "This financial year")]
+
+
+def overview_window(key: str, today: date) -> OverviewWindow:
+    """Calendar periods for the admin overview's client-wise summary, each up to today.
+    Quarters follow the financial year (Q1 = April to June)."""
+    labels = dict(OVERVIEW_PERIODS)
+    if key not in labels:
+        key = "month"
+    if key == "today":
+        start = today
+    elif key == "week":
+        start = today - timedelta(days=6)
+    elif key == "month":
+        start = today.replace(day=1)
+    elif key == "quarter":
+        start = next(q.start for q in Period("fy", current_fy(today)).quarters() if q.start <= today <= q.end)
+    else:
+        start = Period("fy", current_fy(today)).start
+    label = labels[key]
+    if key == "quarter":
+        q = next(q for q in Period("fy", current_fy(today)).quarters() if q.start <= today <= q.end)
+        label = f"This quarter ({q.name}, {q.months})"
+    elif key == "fy":
+        label = f"This financial year ({Period('fy', current_fy(today)).label})"
+    text = fmt_date(today) if start == today else f"{fmt_date(start)} to {fmt_date(today)}"
+    return OverviewWindow(key, label, start, today, text)
+
+
 def previous_window(period: str, today: date) -> tuple[date, date]:
     n = WINDOW_DAYS.get(period, 28)
     start, _ = window(period, today)

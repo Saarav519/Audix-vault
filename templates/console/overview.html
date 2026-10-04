@@ -4,6 +4,30 @@
 <div class="page-head"><div><h1>Overview</h1><p>Clients, audits and files at a glance.</p></div>
 <div class="row"><a class="btn btn-primary" href="{% url 'audits:new' %}">{% icon "plus" %} Add audit</a>{% if user.is_admin %}<a class="btn" href="{% url 'console:client_create' %}">Create client</a>{% endif %}</div></div>
 <section class="kpis" aria-label="Key figures">{% for label, value in kpis %}<div class="kpi"><div class="label">{{ label }}</div><div class="value">{{ value }}</div></div>{% endfor %}</section>
+<section class="card" style="margin-top:16px" aria-labelledby="cs-h" data-testid="client-summary">
+  <div class="card-head" style="flex-wrap:wrap;gap:8px"><div><h2 id="cs-h">Client-wise summary</h2><small class="muted">{{ window.label }} · {{ window.text }} · published audits</small></div>
+  <nav class="seg" aria-label="Period">{% for key, label in overview_periods %}<a href="?op={{ key }}" {% if window.key == key %}aria-current="true"{% endif %}>{{ label }}</a>{% endfor %}</nav></div>
+  <div class="table-wrap"><table class="table qv">
+  <thead><tr><th class="cat">Client</th><th class="num">Audits</th><th class="num">Stores audited</th><th class="num">Stock value</th><th class="num">Shortage</th><th class="num">Excess</th><th class="num">Net difference</th><th class="num">Var %</th><th>Status</th><th class="num">Overdue stores</th><th></th></tr></thead>
+  <tbody>{% for r in summary.rows %}<tr><td class="cat">{{ r.client.name }}</td>
+  <td class="num">{{ r.t.audits }}</td><td class="num">{{ r.stores_audited }} of {{ r.stores_total }}</td>
+  {% if r.t.audits %}<td class="num">{{ r.t.stock_value|inr }}</td>
+  <td class="num shortage">{{ r.t.shortage|inr }}<span class="sub">{{ r.t.shortage_qty|absval|units }}</span></td>
+  <td class="num excess">{{ r.t.excess|inr_signed }}<span class="sub">{{ r.t.excess_qty|units }}</span></td>
+  <td class="num {{ r.t.diff_value|money_class }}">{{ r.t.diff_value|inr_signed }}</td>
+  <td class="num">{{ r.t.var_pct|pct }}</td>
+  <td>{% status_pill r.status r.tone %}</td>
+  {% else %}<td class="num muted" colspan="5">No audit in this period</td><td></td>{% endif %}
+  <td class="num">{% if r.overdue %}<span class="tone-bad">{{ r.overdue }}</span>{% else %}0{% endif %}</td>
+  <td><a class="btn btn-sm" href="{{ r.dashboard }}">Dashboard</a></td></tr>
+  {% empty %}<tr><td colspan="11" class="empty">No active clients.</td></tr>{% endfor %}</tbody>
+  {% if summary.rows %}<tfoot><tr class="total"><td class="cat">All clients</td><td class="num">{{ summary.total.audits }}</td><td class="num">{{ summary.stores_audited }} of {{ summary.stores_total }}</td>
+  <td class="num">{{ summary.total.stock_value|inr }}</td><td class="num shortage">{{ summary.total.shortage|inr }}</td><td class="num excess">{{ summary.total.excess|inr_signed }}</td>
+  <td class="num {{ summary.total.diff_value|money_class }}">{{ summary.total.diff_value|inr_signed }}</td><td class="num">{% if summary.total.audits %}{{ summary.total.var_pct|pct }}{% else %}—{% endif %}</td><td></td>
+  <td class="num">{{ summary.overdue }}</td><td></td></tr></tfoot>{% endif %}
+  </table></div>
+  <p class="muted small" style="margin-top:8px">Var % is net difference as a % of stock value. Status uses each client's own thresholds. Overdue stores are judged today, against each client's audit cycle.</p>
+</section>
 <div class="grid grid-hero" style="margin-top:16px">
 <section class="card" aria-labelledby="cl-h">
   <div class="card-head"><h2 id="cl-h">Clients</h2>{% if user.is_admin %}<a class="btn btn-sm" href="{% url 'console:clients' %}">All clients</a>{% endif %}</div>
